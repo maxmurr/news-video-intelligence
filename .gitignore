@@ -24,6 +24,22 @@
 /public/uploads/*
 !/public/uploads/.gitkeep
 
+# frames
+/public/frames/*
+!/public/frames/.gitkeep
+
+# headlines
+/public/headlines/*
+!/public/headlines/.gitkeep
+
+# transcript
+/public/transcripts/*
+!/public/transcripts/.gitkeep
+
+# stories
+/public/stories/*
+!/public/stories/.gitkeep
+
 # misc
 .DS_Store
 *.pem
@@ -53,3 +69,6 @@ skills-lock.json
 
 # opensrc - source code for packages
 opensrc/
+
+# eval results
+evals/results/
