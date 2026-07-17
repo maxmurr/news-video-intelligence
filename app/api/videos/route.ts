@@ -1,4 +1,6 @@
+import { start } from 'workflow/api';
 import { UPLOADS_DIR, writeArtifactAtomic } from '@/lib/artifacts';
+import { runVideoPipeline } from '@/workflows/video-pipeline';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
@@ -38,11 +40,21 @@ export async function POST(req: Request) {
   const filename = `${randomUUID()}.mp4`;
   await writeArtifactAtomic(path.join(UPLOADS_DIR, filename), bytes);
 
+  // The upload is already persisted; a workflow-start failure must not turn a
+  // successful upload into a 500 that hides the generated filename.
+  let runId: string | null = null;
+  try {
+    ({ runId } = await start(runVideoPipeline, [filename]));
+  } catch (error) {
+    console.error(`Failed to start pipeline for ${filename}:`, error);
+  }
+
   return Response.json(
     {
       filename,
       url: `/uploads/${filename}`,
       size: file.size,
+      runId,
     },
     { status: 201 },
   );

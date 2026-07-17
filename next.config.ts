@@ -1,4 +1,5 @@
-import type { NextConfig } from "next";
+import { withWorkflow } from 'workflow/next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
@@ -6,4 +7,4 @@ const nextConfig: NextConfig = {
   typedRoutes: true,
 };
 
-export default nextConfig;
+export default withWorkflow(nextConfig);

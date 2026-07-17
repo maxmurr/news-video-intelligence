@@ -1,15 +1,7 @@
 import { createTextStreamResponse, streamText, toTextStream } from 'ai';
-import {
-  readCachedArtifact,
-  requestedFilename,
-  TRANSCRIPTS_DIR,
-  UPLOADS_DIR,
-  writeArtifactAtomic,
-} from '@/lib/artifacts';
-import { MODELS } from '@/lib/models';
-import { lineTimestamp } from '@/lib/timestamps';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
+import { readCachedArtifact, requestedFilename, writeArtifactAtomic } from '@/lib/artifacts';
+import { isValidTranscript, readUploadedVideo, transcribeRequest, transcriptPath } from '@/lib/pipeline';
+import { pipelineErrorResponse } from '@/lib/stage-response';
 
 export async function POST(req: Request) {
   const filename = await requestedFilename(req);
@@ -17,9 +9,9 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Invalid filename. Expected a .mp4 file in uploads.' }, { status: 400 });
   }
 
-  const transcriptPath = path.join(TRANSCRIPTS_DIR, `${filename}.txt`);
+  const transcriptFile = transcriptPath(filename);
 
-  const cached = await readCachedArtifact(transcriptPath);
+  const cached = await readCachedArtifact(transcriptFile);
   if (cached !== null) {
     return new Response(cached, {
       headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-Transcript-Cache': 'hit' },
@@ -28,43 +20,30 @@ export async function POST(req: Request) {
 
   let video: Buffer;
   try {
-    video = await readFile(path.join(UPLOADS_DIR, filename));
-  } catch {
-    return Response.json({ error: `File not found: ${filename}` }, { status: 404 });
+    video = await readUploadedVideo(filename);
+  } catch (error) {
+    const mapped = pipelineErrorResponse(error);
+    if (mapped) return mapped;
+    throw error;
   }
 
-  const result = streamText({
-    model: MODELS.transcribe,
-    system:
-      'You are a transcription engine. You output verbatim transcripts and nothing else. ' +
-      'Never add introductions, headers, or commentary. Your response must start directly with the first timestamp.',
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: 'Transcribe the spoken audio in this video. Include a timestamp (MM:SS) roughly every 10 seconds and preserve speaker turns.',
-          },
-          { type: 'file', mediaType: 'video/mp4', data: video },
-        ],
-      },
-    ],
-  });
+  // Stream the transcript to the client as it is generated; the workflow's
+  // buffered variant (transcribeVideo) shares the same request options.
+  const result = streamText(transcribeRequest(video));
 
   // Persist once the stream completes. Only cache output that looks like a
   // transcript — a refusal or preamble cached here would poison every
   // downstream stage until someone manually deletes the file.
   void (async () => {
     try {
-      const text = await result.text;
-      if (lineTimestamp(text.trim()) === null) {
+      const trimmed = (await result.text).trim();
+      if (!isValidTranscript(trimmed)) {
         console.error(
-          `Transcript for ${filename} does not start with a timestamp; not caching. Got: ${text.slice(0, 80)}`,
+          `Transcript for ${filename} does not start with a timestamp; not caching. Got: ${trimmed.slice(0, 80)}`,
         );
         return;
       }
-      await writeArtifactAtomic(transcriptPath, text);
+      await writeArtifactAtomic(transcriptFile, trimmed);
     } catch (error) {
       console.error(`Failed to persist transcript for ${filename}:`, error);
     }
