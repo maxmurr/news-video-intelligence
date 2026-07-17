@@ -2,19 +2,29 @@
 
 import Link from 'next/link';
 import * as React from 'react';
+import { toast } from 'sonner';
 import { ArrowLeft, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { isPipelineComplete, type BroadcastDetail, type BroadcastStages } from '@/lib/broadcast-types';
-import { formatUtcDateLabel, utcDayKey } from '@/lib/dates';
+import { useLocalDateLabel } from './use-local-date-label';
 import { cn } from '@/lib/utils';
 import { BroadcastPlayer } from './broadcast-player';
 import { ChatPanel } from './chat-panel';
-import { StageProgress } from './stage-progress';
+import { analysisConcern, StageProgress } from './stage-progress';
 import { activeStoryIndex, StoryGrid } from './story-grid';
 
 const POLL_INTERVAL_MS = 4000;
-/** No stage change for this long → treat as stalled and offer recovery. */
-const STALL_AFTER_MS = 2 * 60 * 1000;
+/**
+ * Fallback stall thresholds, used only when the workflow engine can't report
+ * run health (`run.status === 'unknown'`). Transcription of a 30–60 minute
+ * broadcast legitimately sits in one stage for many minutes, so its window is
+ * much wider than the later, faster stages.
+ */
+const STALL_AFTER_MS = { transcript: 12 * 60 * 1000, later: 5 * 60 * 1000 } as const;
+
+function stallThreshold(stages: BroadcastStages): number {
+  return stages.transcript ? STALL_AFTER_MS.later : STALL_AFTER_MS.transcript;
+}
 
 function stagesKey(stages: BroadcastStages): string {
   return `${stages.transcript}-${stages.stories}-${stages.headlines}-${stages.frames}`;
@@ -38,10 +48,13 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
   const [seekAnnouncement, setSeekAnnouncement] = React.useState('');
   const [activeSeconds, setActiveSeconds] = React.useState<number | null>(null);
   const [stalled, setStalled] = React.useState(false);
+  const [retrying, setRetrying] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const headerRef = React.useRef<HTMLElement | null>(null);
   const lastProgressKeyRef = React.useRef(stagesKey(initial.stages));
   /** 0 until the first unchanged poll starts the stall clock. */
   const lastProgressAtRef = React.useRef(0);
+  const stagesRef = React.useRef(initial.stages);
 
   const processing = !isPipelineComplete(broadcast.stages);
   const transcriptReady = broadcast.stages.transcript;
@@ -53,13 +66,14 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
       const next = (await res.json()) as BroadcastDetail;
       const nextKey = stagesKey(next.stages);
       const now = Date.now();
+      stagesRef.current = next.stages;
       if (nextKey !== lastProgressKeyRef.current) {
         lastProgressKeyRef.current = nextKey;
         lastProgressAtRef.current = now;
         setStalled(false);
       } else if (lastProgressAtRef.current === 0) {
         lastProgressAtRef.current = now;
-      } else if (now - lastProgressAtRef.current >= STALL_AFTER_MS) {
+      } else if (now - lastProgressAtRef.current >= stallThreshold(next.stages)) {
         setStalled(true);
       }
       setBroadcast(next);
@@ -67,16 +81,37 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
     } catch {
       const now = Date.now();
       if (lastProgressAtRef.current === 0) lastProgressAtRef.current = now;
-      else if (now - lastProgressAtRef.current >= STALL_AFTER_MS) setStalled(true);
+      else if (now - lastProgressAtRef.current >= stallThreshold(stagesRef.current)) setStalled(true);
       return false;
     }
   }, [broadcast.filename]);
 
-  const retryAnalysis = React.useCallback(() => {
-    lastProgressAtRef.current = 0;
-    setStalled(false);
-    void refreshBroadcast();
-  }, [refreshBroadcast]);
+  const retryAnalysis = React.useCallback(async () => {
+    setRetrying(true);
+    try {
+      const res = await fetch('/api/pipeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: broadcast.filename }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? `Restart failed (${res.status}).`);
+      }
+      lastProgressAtRef.current = 0;
+      setStalled(false);
+      toast.success('Analysis restarted', {
+        description: 'Finished stages are kept. The pipeline resumes from the first missing one.',
+      });
+      await refreshBroadcast();
+    } catch (error) {
+      toast.error('Could not restart analysis', {
+        description: error instanceof Error ? error.message : 'Try again in a moment.',
+      });
+    } finally {
+      setRetrying(false);
+    }
+  }, [broadcast.filename, refreshBroadcast]);
 
   React.useEffect(() => {
     if (!processing) return;
@@ -158,9 +193,10 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
         // Autoplay can be blocked; the frame is still shown at the right moment.
       });
       const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      video.scrollIntoView({
+      // A click jumps playback; scroll up to the header so the player is in view.
+      (headerRef.current ?? video).scrollIntoView({
         behavior: prefersReducedMotion ? 'auto' : 'smooth',
-        block: 'nearest',
+        block: 'start',
       });
       setActiveSeconds(seconds);
 
@@ -174,17 +210,17 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
 
   const leadHeadline = broadcast.topHeadline?.trim() || null;
   const title = leadHeadline || (processing ? 'Processing…' : 'Untitled broadcast');
-  const uploadedLabel = formatUtcDateLabel(broadcast.uploadedAt);
-  const uploadedDay = utcDayKey(broadcast.uploadedAt) ?? broadcast.uploadedAt;
+  const uploadedLabel = useLocalDateLabel(broadcast.uploadedAt, 'date');
   const activeIndex = activeStoryIndex(broadcast.stories, activeSeconds);
   const activeStory = activeIndex !== null ? broadcast.stories[activeIndex] : null;
+  const concern = analysisConcern(broadcast.run, stalled);
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col px-4 pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:pb-0">
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {seekAnnouncement}
       </p>
-      <header className="flex items-center gap-3 border-b py-3">
+      <header ref={headerRef} className="flex items-center gap-3 border-b py-3">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -205,7 +241,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
                 </span>
               </>
             )}
-            <time dateTime={uploadedDay}>{uploadedLabel}</time>
+            <time dateTime={broadcast.uploadedAt}>{uploadedLabel}</time>
             {broadcast.storyCount !== null && (
               <>
                 <span aria-hidden className="mx-1.5">
@@ -233,7 +269,15 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
         <div className="flex min-w-0 flex-col gap-6">
           <BroadcastPlayer src={broadcast.url} videoRef={videoRef} />
 
-          {processing && <StageProgress stages={broadcast.stages} stalled={stalled} onRetry={retryAnalysis} />}
+          {processing && (
+            <StageProgress
+              stages={broadcast.stages}
+              concern={concern}
+              startedAt={broadcast.run.startedAt}
+              onRetry={retryAnalysis}
+              retrying={retrying}
+            />
+          )}
 
           <StoryGrid
             stories={broadcast.stories}
@@ -247,16 +291,17 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
         <aside
           className={cn(
             'bg-card flex flex-col border',
-            'fixed inset-x-0 bottom-0 z-40 rounded-t-xl border-x-0 border-b-0 shadow-lg',
-            'transition-[height] duration-200 ease-out motion-reduce:transition-none',
-            // Keep ~half the viewport free so player + active story stay peekable while asking.
-            askOpen ? 'h-[min(48dvh,26rem)]' : 'h-[calc(3.5rem+env(safe-area-inset-bottom))]',
-            'lg:static lg:sticky lg:top-6 lg:z-auto lg:h-[calc(100dvh-6rem)] lg:rounded-xl lg:border lg:shadow-none',
+            'fixed inset-x-0 bottom-0 z-40 h-[min(48dvh,26rem)] rounded-t-xl border-x-0 border-b-0 shadow-lg',
+            // Slide instead of resizing so the sheet animates on the compositor,
+            // never re-laying-out the page. Closed leaves the 3.5rem toggle row peeking.
+            'transition-transform duration-200 ease-out motion-reduce:transition-none',
+            askOpen ? 'translate-y-0' : 'translate-y-[calc(100%-3.5rem-env(safe-area-inset-bottom))]',
+            'lg:static lg:sticky lg:top-6 lg:z-auto lg:h-[calc(100dvh-6rem)] lg:translate-y-0 lg:rounded-xl lg:border lg:shadow-none',
           )}
         >
           <button
             type="button"
-            className="focus-visible:ring-ring flex min-h-14 w-full shrink-0 items-center justify-between gap-3 px-4 py-3 text-left focus-visible:ring-2 focus-visible:outline-none lg:hidden"
+            className="focus-visible:ring-ring/50 flex min-h-14 w-full shrink-0 items-center justify-between gap-3 px-4 py-3 text-left focus-visible:ring-3 focus-visible:outline-none lg:hidden"
             aria-expanded={askOpen}
             aria-controls="broadcast-ask-panel"
             onClick={() => setAskOpen(open => !open)}
@@ -310,6 +355,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
               filename={broadcast.filename}
               stories={broadcast.stories}
               transcriptReady={transcriptReady}
+              halted={concern !== null}
               activeStory={activeStory}
               onSeek={seekTo}
             />

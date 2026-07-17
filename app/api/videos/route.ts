@@ -8,6 +8,7 @@ import {
 } from '@/lib/artifacts';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/broadcast-types';
 import { getBroadcast, listBroadcasts } from '@/lib/broadcasts';
+import { writeRunRecord } from '@/lib/run-record';
 import { runVideoPipeline } from '@/workflows/video-pipeline';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
@@ -64,12 +65,18 @@ export async function POST(req: Request) {
   }
 
   // The upload is already persisted; a workflow-start failure must not turn a
-  // successful upload into a 500 that hides the generated filename.
+  // successful upload into a 500 that hides the generated filename. The run
+  // record makes the failure visible to the broadcast page instead.
   let runId: string | null = null;
   try {
     ({ runId } = await start(runVideoPipeline, [filename]));
   } catch (error) {
     console.error(`Failed to start pipeline for ${filename}:`, error);
+  }
+  try {
+    await writeRunRecord(filename, runId);
+  } catch (error) {
+    console.error(`Failed to write run record for ${filename}:`, error);
   }
 
   return Response.json(

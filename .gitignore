@@ -40,6 +40,10 @@
 /public/stories/*
 !/public/stories/.gitkeep
 
+# pipeline run records
+/public/runs/*
+!/public/runs/.gitkeep
+
 # misc
 .DS_Store
 *.pem

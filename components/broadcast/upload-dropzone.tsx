@@ -20,6 +20,8 @@ import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/broadcast-types';
 
 interface UploadResponse {
   filename?: string;
+  /** Workflow run id; null when the upload landed but analysis failed to start. */
+  runId?: string | null;
   error?: string;
 }
 
@@ -69,12 +71,18 @@ export function UploadDropzone() {
       const file = accepted[0];
       if (!file) return;
       try {
-        const { filename } = await uploadVideo(file, percent => onProgress(file, percent));
+        const { filename, runId } = await uploadVideo(file, percent => onProgress(file, percent));
         if (!filename) throw new Error('Upload succeeded but no filename was returned.');
         onSuccess(file);
-        toast.success('Broadcast uploaded', {
-          description: 'Extracting transcript and stories — progress opens next.',
-        });
+        if (runId === null) {
+          toast.warning('Uploaded, but analysis didn’t start', {
+            description: 'The broadcast is safe. Restart analysis from the next page.',
+          });
+        } else {
+          toast.success('Broadcast uploaded', {
+            description: 'Extracting transcript and stories. Progress opens next.',
+          });
+        }
         router.push(`/v/${filename}`);
       } catch (error) {
         const err = error instanceof Error ? error : new Error('Upload failed.');
@@ -98,7 +106,7 @@ export function UploadDropzone() {
     >
       <FileUploadDropzone className="border-border hover:bg-muted/30 data-dragging:bg-muted/40 flex h-10 flex-row items-center justify-between gap-3 rounded-lg border border-solid px-3 py-0 transition-colors duration-150 ease-out outline-none">
         <p className="text-muted-foreground min-w-0 flex-1 text-left text-xs text-pretty">
-          MP4 · up to {MAX_UPLOAD_MB}MB
+          MP4 · up to {MAX_UPLOAD_MB} MB
         </p>
         <FileUploadTrigger
           render={

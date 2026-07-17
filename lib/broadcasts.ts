@@ -7,8 +7,17 @@
 import 'server-only';
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { getRun } from 'workflow/api';
 import { isValidUploadFilename, readArtifactJson, UPLOADS_DIR } from './artifacts';
-import type { BroadcastDetail, BroadcastStages, BroadcastSummary, StoryCard } from './broadcast-types';
+import {
+  isPipelineComplete,
+  type BroadcastDetail,
+  type BroadcastRun,
+  type BroadcastStages,
+  type BroadcastSummary,
+  type StoryCard,
+} from './broadcast-types';
+import { readRunRecord } from './run-record';
 import { framesPath, headlinesPath, storiesPath, transcriptPath } from './pipeline';
 import {
   framesFileSchema,
@@ -113,6 +122,27 @@ export async function listBroadcasts(): Promise<BroadcastSummary[]> {
     .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
 }
 
+/**
+ * Health of the run behind an incomplete pipeline. A complete pipeline never
+ * queries the engine — the artifacts are the proof. A missing record predates
+ * run tracking, and an engine query failure must not break the read side, so
+ * both degrade to `unknown` rather than throwing.
+ */
+async function resolveRun(filename: string, stages: BroadcastStages): Promise<BroadcastRun> {
+  if (isPipelineComplete(stages)) return { status: 'completed', startedAt: null };
+
+  const record = await readRunRecord(filename);
+  if (record === null) return { status: 'unknown', startedAt: null };
+  if (record.runId === null) return { status: 'not-started', startedAt: record.startedAt };
+
+  try {
+    const status = await getRun(record.runId).status;
+    return { status, startedAt: record.startedAt };
+  } catch {
+    return { status: 'unknown', startedAt: record.startedAt };
+  }
+}
+
 /** Full detail for one broadcast, or null when the upload doesn't exist. */
 export async function getBroadcast(filename: string): Promise<BroadcastDetail | null> {
   const [statResult, artifacts] = await Promise.all([
@@ -127,5 +157,6 @@ export async function getBroadcast(filename: string): Promise<BroadcastDetail | 
     stories: artifacts.headlinesFile
       ? mergeStories(artifacts.headlinesFile.items, artifacts.framesFile?.items ?? null)
       : [],
+    run: await resolveRun(filename, artifacts.stages),
   };
 }

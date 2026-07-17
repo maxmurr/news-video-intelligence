@@ -1,7 +1,10 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { Spinner } from '@/components/ui/spinner';
 import { PIPELINE_STAGES, type BroadcastSummary, type PipelineStage } from '@/lib/broadcast-types';
+import { useLocalDateLabel } from './use-local-date-label';
 
 const STAGE_LABELS: Record<PipelineStage, string> = {
   transcript: 'Extracting transcript',
@@ -30,25 +33,6 @@ function stageStatusLabel(broadcast: BroadcastSummary): string {
   return STAGE_LABELS[next];
 }
 
-function formatUploadedAt(iso: string, timeOnly: boolean): string {
-  const date = new Date(iso);
-  if (timeOnly) {
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      timeZone: 'UTC',
-    });
-  }
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: 'UTC',
-  });
-}
-
 function cardTitle(broadcast: BroadcastSummary): string {
   const headline = broadcast.topHeadline?.trim();
   if (headline) return headline;
@@ -68,14 +52,14 @@ export function BroadcastCard({
   const statusLabel = stageStatusLabel(broadcast);
   const title = cardTitle(broadcast);
   const fileId = shortFileId(broadcast.filename);
-  const uploadedLabel = formatUploadedAt(broadcast.uploadedAt, timeOnly);
-  const ariaLabel = `${title}. File ${broadcast.filename}. Uploaded ${uploadedLabel}. ${statusLabel}.`;
+  const uploadedLabel = useLocalDateLabel(broadcast.uploadedAt, timeOnly ? 'time' : 'datetime');
+  const ariaLabel = `${title}. File ${fileId}. Uploaded ${uploadedLabel}. ${statusLabel}.`;
 
   return (
     <Link
       href={`/v/${broadcast.filename}`}
       aria-label={ariaLabel}
-      className="bg-card hover:bg-muted/40 focus-visible:ring-ring grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-2 transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:outline-none sm:grid-cols-[8rem_minmax(0,1fr)_7rem] sm:gap-4"
+      className="bg-card hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-ring/50 grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-2 transition-colors duration-150 ease-out focus-visible:ring-3 focus-visible:outline-none sm:grid-cols-[8rem_minmax(0,1fr)_7rem] sm:gap-4"
     >
       <div className="bg-muted relative col-start-1 aspect-video w-full overflow-hidden rounded-md">
         {broadcast.thumbnailUrl ? (

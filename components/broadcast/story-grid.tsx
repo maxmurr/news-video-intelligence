@@ -1,7 +1,6 @@
 'use client';
 
 import Image from 'next/image';
-import * as React from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { StoryCard } from '@/lib/broadcast-types';
 import { timestampToSeconds } from '@/lib/timestamps';
@@ -47,21 +46,9 @@ function StoryRow({
   /** True when this row restates the page lead — show segment copy, not a second title. */
   isLead?: boolean;
 }) {
-  const rowRef = React.useRef<HTMLButtonElement>(null);
-
-  React.useEffect(() => {
-    if (!active || !rowRef.current) return;
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    rowRef.current.scrollIntoView({
-      behavior: prefersReducedMotion ? 'auto' : 'smooth',
-      block: 'nearest',
-    });
-  }, [active]);
-
   return (
     <li>
       <button
-        ref={rowRef}
         type="button"
         onClick={() => onSeek(timestampToSeconds(story.startTime))}
         aria-label={
@@ -71,7 +58,7 @@ function StoryRow({
         }
         aria-current={active ? 'true' : undefined}
         className={cn(
-          'bg-card hover:bg-muted/40 focus-visible:ring-ring grid w-full cursor-pointer grid-cols-[6rem_minmax(0,1fr)] items-start gap-3 rounded-lg border p-2 text-left transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:outline-none sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4',
+          'bg-card hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-ring/50 grid w-full cursor-pointer grid-cols-[6rem_minmax(0,1fr)] items-start gap-3 rounded-lg border p-2 text-left transition-colors duration-150 ease-out focus-visible:ring-3 focus-visible:outline-none sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4',
           active && 'border-primary bg-muted/40 ring-primary/15 ring-1',
         )}
       >
@@ -101,16 +88,16 @@ function StoryRow({
           {isLead ? (
             <>
               <span className="text-muted-foreground text-xs leading-none font-medium">Lead segment</span>
-              <p className="text-muted-foreground line-clamp-2 max-w-[65ch] text-xs leading-snug wrap-break-word">
+              <p className="text-muted-foreground line-clamp-2 max-w-[56ch] text-xs leading-snug wrap-break-word">
                 {story.summary}
               </p>
             </>
           ) : (
             <>
-              <h3 className="font-heading text-sm leading-snug font-medium tracking-[-0.01em] text-balance wrap-break-word">
+              <span className="font-heading block text-base leading-snug font-semibold tracking-[-0.015em] text-balance wrap-break-word">
                 {story.headline}
-              </h3>
-              <p className="text-muted-foreground line-clamp-2 max-w-[65ch] text-sm leading-normal wrap-break-word">
+              </span>
+              <p className="text-muted-foreground line-clamp-2 max-w-[56ch] text-sm leading-normal wrap-break-word">
                 {story.summary}
               </p>
             </>
@@ -172,7 +159,7 @@ export function StoryGrid({
           Stories
         </h2>
         <p className="text-muted-foreground text-sm" role="status">
-          No stories were extracted from this broadcast.
+          We found no stories in this broadcast.
         </p>
       </section>
     );

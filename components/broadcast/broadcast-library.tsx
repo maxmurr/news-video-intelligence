@@ -3,30 +3,26 @@
 import * as React from 'react';
 import { Search } from 'lucide-react';
 import { BroadcastCard } from '@/components/broadcast/broadcast-card';
+import { useHydrated } from '@/components/broadcast/use-local-date-label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { BroadcastSummary } from '@/lib/broadcast-types';
+import { formatDayHeading, localDayKey, utcDayKey } from '@/lib/dates';
 
 const PREVIEW_LIMIT = 5;
 
-function dayKey(iso: string): string {
-  return iso.slice(0, 10);
-}
-
-function formatDayHeading(isoDay: string): string {
-  return new Date(`${isoDay}T00:00:00.000Z`).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
-}
-
-function groupBroadcastsByDay(broadcasts: BroadcastSummary[]): { day: string; items: BroadcastSummary[] }[] {
+/**
+ * UTC days for SSR + hydration, the viewer's local days after mount — so a
+ * late-evening upload files under the day the analyst actually made it.
+ */
+function groupBroadcastsByDay(
+  broadcasts: BroadcastSummary[],
+  useLocalDays: boolean,
+): { day: string; items: BroadcastSummary[] }[] {
+  const keyFor = useLocalDays ? localDayKey : utcDayKey;
   const groups = new Map<string, BroadcastSummary[]>();
   for (const broadcast of broadcasts) {
-    const key = dayKey(broadcast.uploadedAt);
+    const key = keyFor(broadcast.uploadedAt) ?? broadcast.uploadedAt.slice(0, 10);
     const bucket = groups.get(key);
     if (bucket) bucket.push(broadcast);
     else groups.set(key, [broadcast]);
@@ -34,12 +30,16 @@ function groupBroadcastsByDay(broadcasts: BroadcastSummary[]): { day: string; it
   return Array.from(groups.entries()).map(([day, items]) => ({ day, items }));
 }
 
+/**
+ * Rows display only the first UUID segment, so search matches only that
+ * visible id (plus headline) — a hit on the hidden tail would look wrong.
+ */
 function matchesQuery(broadcast: BroadcastSummary, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   const headline = broadcast.topHeadline?.toLowerCase() ?? '';
-  const filename = broadcast.filename.toLowerCase();
-  return headline.includes(q) || filename.includes(q);
+  const visibleId = broadcast.filename.split('-')[0]?.toLowerCase() ?? '';
+  return headline.includes(q) || visibleId.includes(q);
 }
 
 function broadcastNoun(count: number): string {
@@ -73,6 +73,7 @@ export function BroadcastLibrary({ broadcasts }: { broadcasts: BroadcastSummary[
   const [query, setQuery] = React.useState('');
   const [expanded, setExpanded] = React.useState(false);
   const deferredQuery = React.useDeferredValue(query);
+  const hydrated = useHydrated();
 
   const filtered = React.useMemo(
     () => broadcasts.filter(broadcast => matchesQuery(broadcast, deferredQuery)),
@@ -83,7 +84,7 @@ export function BroadcastLibrary({ broadcasts }: { broadcasts: BroadcastSummary[
   const isPreviewCapped = !expanded && !isFiltering && filtered.length > PREVIEW_LIMIT;
   const visible = isPreviewCapped ? filtered.slice(0, PREVIEW_LIMIT) : filtered;
   const overflow = filtered.length - visible.length;
-  const groups = groupBroadcastsByDay(visible);
+  const groups = groupBroadcastsByDay(visible, hydrated);
   const countLabel = libraryCountLabel({
     total: broadcasts.length,
     filtered: filtered.length,
@@ -107,7 +108,7 @@ export function BroadcastLibrary({ broadcasts }: { broadcasts: BroadcastSummary[
               setQuery(event.target.value);
               if (event.target.value.trim()) setExpanded(true);
             }}
-            placeholder="Search by headline or file id"
+            placeholder="Search by headline or file ID"
             aria-label="Search broadcasts"
             className="pl-8"
           />
@@ -118,9 +119,12 @@ export function BroadcastLibrary({ broadcasts }: { broadcasts: BroadcastSummary[
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-muted-foreground text-sm text-pretty">
-          No broadcasts match “{query.trim()}”. Try another headline or file id.
-        </p>
+        <div className="flex flex-col items-start gap-2">
+          <p className="text-muted-foreground text-sm text-pretty">Try another headline or file ID.</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => setQuery('')}>
+            Clear search
+          </Button>
+        </div>
       ) : (
         <div className="flex flex-col gap-6">
           {groups.map(group => (

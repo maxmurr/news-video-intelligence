@@ -28,7 +28,7 @@ function TimestampButton({
       type="button"
       onClick={() => onSeek(timestampToSeconds(timestamp))}
       aria-label={`Play video at ${label}`}
-      className="bg-muted hover:border-primary hover:bg-primary hover:text-primary-foreground focus-visible:ring-ring inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-md border px-2 py-1 align-baseline font-mono text-xs font-medium tabular-nums transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:outline-none"
+      className="bg-muted hover:border-primary hover:bg-primary hover:text-primary-foreground focus-visible:border-ring focus-visible:ring-ring/50 inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-md border px-2 py-1 align-baseline font-mono text-xs font-medium tabular-nums transition-colors duration-150 ease-out focus-visible:ring-3 focus-visible:outline-none"
     >
       <Play className="size-2.5 fill-current" aria-hidden />
       {label}

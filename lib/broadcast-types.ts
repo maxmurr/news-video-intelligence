@@ -41,6 +41,22 @@ export interface StoryCard {
   frameReason: string | null;
 }
 
+/**
+ * Health of the workflow run behind an incomplete pipeline. The first five
+ * come from the workflow engine; `not-started` means the start call failed
+ * after upload; `unknown` means no run record exists or the engine could not
+ * be queried, so the client must fall back to progress-based heuristics.
+ */
+export type BroadcastRunStatus =
+  'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'not-started' | 'unknown';
+
+export interface BroadcastRun {
+  status: BroadcastRunStatus;
+  /** When the most recent start attempt happened; null when never attempted. */
+  startedAt: string | null;
+}
+
 export interface BroadcastDetail extends BroadcastSummary {
   stories: StoryCard[];
+  run: BroadcastRun;
 }

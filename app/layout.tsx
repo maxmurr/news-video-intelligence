@@ -8,9 +8,9 @@ const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 const newsreader = Newsreader({ subsets: ['latin'], variable: '--font-heading', style: ['normal', 'italic'] });
 
 export const metadata: Metadata = {
-  title: 'Broadcast Desk — Interactive News Video Intelligence',
+  title: 'Broadcast Desk: Interactive News Video Intelligence',
   description:
-    'Ask questions about a news broadcast and jump to the supporting moment in the footage — stories, headlines, and timestamps you can trust.',
+    'Ask questions about a news broadcast and jump to the supporting moment in the footage. Stories, headlines, and timestamps you can trust.',
 };
 
 export default function RootLayout({

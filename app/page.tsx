@@ -6,7 +6,6 @@ import { UploadDropzone } from '@/components/broadcast/upload-dropzone';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 import { listBroadcasts } from '@/lib/broadcasts';
-import { cn } from '@/lib/utils';
 
 async function DeskHome() {
   await connection();
@@ -15,14 +14,9 @@ async function DeskHome() {
 
   return (
     <>
-      <header className={cn('flex flex-col border-b', hasLibrary ? 'gap-1.5 pb-4' : 'gap-2 pb-6')}>
+      <header className="flex flex-col gap-1.5 border-b pb-4">
         <p className="text-muted-foreground text-xs font-medium">Broadcast Desk</p>
-        <h1
-          className={cn(
-            'font-heading max-w-2xl leading-[1.1] font-semibold tracking-tight text-balance',
-            hasLibrary ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl',
-          )}
-        >
+        <h1 className="font-heading max-w-2xl text-2xl leading-[1.1] font-semibold tracking-tight text-balance sm:text-3xl">
           Ask the broadcast. Jump to the proof.
         </h1>
         {!hasLibrary ? (
