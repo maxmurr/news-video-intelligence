@@ -1,31 +1,26 @@
 /**
- * Pipeline evals. For every video in public/uploads/, runs each API stage
+ * Pipeline evals. For every video in public/uploads/, runs each pipeline stage
  * (transcribe -> stories -> headlines -> frames) and scores the artifacts with
  * deterministic invariant checks plus an LLM judge (different model family
  * than the pipeline to avoid self-preference).
+ *
+ * Stages are called directly against lib/pipeline — the same code path the
+ * durable workflow runs in production — so no dev server is required.
  *
  * Usage:
  *   bun evals/run.ts                 # eval all videos, reuse cached artifacts
  *   bun evals/run.ts --video <name>  # eval one video
  *
- * Requires the dev server (bun run dev) and AI_GATEWAY_API_KEY.
+ * Requires AI_GATEWAY_API_KEY.
  */
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { PUBLIC_DIR } from '../lib/artifacts';
+import { detectStories, extractFrames, generateHeadlines, transcribeVideo } from '../lib/pipeline';
 import { framesFileSchema, HEADLINE_MAX_WORDS, headlinesFileSchema, storiesFileSchema } from '../lib/schemas';
 import { lineTimestamp, timestampToSeconds, transcriptSpan, transcriptTimestamps } from '../lib/timestamps';
 import { videoDurationSeconds } from '../lib/video';
-import {
-  BASE_URL,
-  callEndpoint,
-  check,
-  judge,
-  readArtifact,
-  type Check,
-  type JudgeResult,
-  type StageResult,
-} from './lib';
+import { check, judge, readArtifact, type Check, type JudgeResult, type StageResult } from './lib';
 
 const RESULTS_DIR = path.join(process.cwd(), 'evals', 'results');
 
@@ -35,8 +30,8 @@ const STORY_GAP_SLACK_SEC = 15;
 
 async function evalTranscribe(filename: string): Promise<StageResult> {
   const started = Date.now();
-  await callEndpoint('/api/transcribe', filename);
-  const transcript = await readArtifact(`transcripts/${filename}.txt`, 20);
+  await transcribeVideo(filename);
+  const transcript = await readArtifact(`transcripts/${filename}.txt`);
   const videoSec = await videoDurationSeconds(path.join(PUBLIC_DIR, 'uploads', filename));
 
   const timestamps = transcriptTimestamps(transcript);
@@ -82,7 +77,7 @@ async function evalTranscribe(filename: string): Promise<StageResult> {
 
 async function evalStories(filename: string): Promise<StageResult> {
   const started = Date.now();
-  await callEndpoint('/api/stories', filename);
+  await detectStories(filename);
   const transcript = await readArtifact(`transcripts/${filename}.txt`);
   const { stories } = storiesFileSchema.parse(JSON.parse(await readArtifact(`stories/${filename}.json`)));
 
@@ -123,7 +118,7 @@ async function evalStories(filename: string): Promise<StageResult> {
 
 async function evalHeadlines(filename: string): Promise<StageResult> {
   const started = Date.now();
-  await callEndpoint('/api/headlines', filename);
+  await generateHeadlines(filename);
   const transcript = await readArtifact(`transcripts/${filename}.txt`);
   const { stories } = storiesFileSchema.parse(JSON.parse(await readArtifact(`stories/${filename}.json`)));
   const { items } = headlinesFileSchema.parse(JSON.parse(await readArtifact(`headlines/${filename}.json`)));
@@ -161,7 +156,7 @@ async function evalHeadlines(filename: string): Promise<StageResult> {
 
 async function evalFrames(filename: string): Promise<StageResult> {
   const started = Date.now();
-  await callEndpoint('/api/frames', filename);
+  await extractFrames(filename);
   const transcript = await readArtifact(`transcripts/${filename}.txt`);
   const { items } = framesFileSchema.parse(JSON.parse(await readArtifact(`frames/${filename}.json`)));
   const { items: headlines } = headlinesFileSchema.parse(JSON.parse(await readArtifact(`headlines/${filename}.json`)));
@@ -247,13 +242,6 @@ function formatStage(result: StageResult): string {
 
 async function main() {
   const videoFilter = process.argv.includes('--video') ? process.argv[process.argv.indexOf('--video') + 1] : undefined;
-
-  try {
-    await fetch(BASE_URL);
-  } catch {
-    console.error(`Dev server not reachable at ${BASE_URL}. Start it with: bun run dev`);
-    process.exit(1);
-  }
 
   const uploads = (await readdir(path.join(PUBLIC_DIR, 'uploads'))).filter(f => f.endsWith('.mp4'));
   const videos = videoFilter ? uploads.filter(f => f === videoFilter) : uploads;

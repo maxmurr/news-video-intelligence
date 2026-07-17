@@ -4,7 +4,6 @@ import path from 'node:path';
 import { z } from 'zod';
 import { PUBLIC_DIR } from '../lib/artifacts';
 
-export const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:3000';
 // A different model family than the pipeline (Gemini) to avoid self-preference.
 const JUDGE_MODEL = 'anthropic/claude-sonnet-5';
 
@@ -34,34 +33,8 @@ export function check(name: string, pass: boolean, detail?: string): Check {
   return { name, pass, detail: pass ? undefined : detail };
 }
 
-export async function callEndpoint(endpoint: string, filename: string): Promise<void> {
-  const res = await fetch(`${BASE_URL}${endpoint}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ filename }),
-  });
-  const body = await res.text(); // drain — streaming endpoints only persist after the stream completes
-  if (!res.ok) {
-    throw new Error(`${endpoint} -> ${res.status}: ${body}`);
-  }
-}
-
-/**
- * Reads a pipeline artifact. Pass `retries` only for artifacts whose
- * persistence can lag the HTTP response (the transcript, which is written
- * after the stream completes); everything else is written before the
- * endpoint responds and should fail fast.
- */
-export async function readArtifact(relativePath: string, retries = 0): Promise<string> {
-  const fullPath = path.join(PUBLIC_DIR, relativePath);
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await readFile(fullPath, 'utf8');
-    } catch (error) {
-      if (attempt >= retries) throw error;
-      await new Promise(resolve => setTimeout(resolve, 250));
-    }
-  }
+export async function readArtifact(relativePath: string): Promise<string> {
+  return readFile(path.join(PUBLIC_DIR, relativePath), 'utf8');
 }
 
 const scoreSchema = z.object({
