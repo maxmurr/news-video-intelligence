@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# skill files
+skills-lock.json
+
+# agent files
+.agents
+.claude
