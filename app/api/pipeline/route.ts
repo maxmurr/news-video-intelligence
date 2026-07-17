@@ -1,8 +1,7 @@
 import { start } from 'workflow/api';
-import { access } from 'node:fs/promises';
-import path from 'node:path';
 import { getInjection } from '@/di/container';
-import { requestedFilename, UPLOADS_DIR } from '@/lib/artifacts';
+import { requestedFilename } from '@/lib/artifacts';
+import { uploads } from '@/lib/files';
 import { NotFoundError } from '@/src/entities/errors/common';
 import { runVideoPipeline } from '@/workflows/video-pipeline';
 
@@ -24,9 +23,7 @@ export async function POST(req: Request) {
 
   // The row is authoritative, but the pipeline still needs the binary.
   // Fail here rather than 202-ing a run that will die on its first step.
-  try {
-    await access(path.join(UPLOADS_DIR, filename));
-  } catch {
+  if (!(await uploads.exists(filename))) {
     return Response.json({ error: `File not found: ${filename}` }, { status: 404 });
   }
 

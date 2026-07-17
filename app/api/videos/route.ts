@@ -1,18 +1,11 @@
 import { start } from 'workflow/api';
 import { getInjection } from '@/di/container';
-import {
-  isValidUploadFilename,
-  streamUploadAtomic,
-  UPLOADS_DIR,
-  UploadInvalidError,
-  UploadTooLargeError,
-} from '@/lib/artifacts';
+import { guardUploadStream, isValidUploadFilename, UploadInvalidError, UploadTooLargeError } from '@/lib/artifacts';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/broadcast-types';
 import { getBroadcast, listBroadcasts } from '@/lib/broadcasts';
+import { unwrapFilesError, uploads } from '@/lib/files';
 import { runVideoPipeline } from '@/workflows/video-pipeline';
 import { randomUUID } from 'node:crypto';
-import { unlink } from 'node:fs/promises';
-import path from 'node:path';
 
 export async function GET(req: Request) {
   const filename = new URL(req.url).searchParams.get('filename');
@@ -49,17 +42,16 @@ export async function POST(req: Request) {
   }
 
   const filename = `${randomUUID()}.mp4`;
+  const guarded = guardUploadStream(req.body, { maxBytes: MAX_UPLOAD_BYTES, validateHead: isMp4 });
   let size: number;
   try {
-    size = await streamUploadAtomic(path.join(UPLOADS_DIR, filename), req.body, {
-      maxBytes: MAX_UPLOAD_BYTES,
-      validateHead: isMp4,
-    });
+    ({ size } = await uploads.upload(filename, guarded, { contentType: 'video/mp4' }));
   } catch (error) {
-    if (error instanceof UploadTooLargeError) {
+    const cause = unwrapFilesError(error);
+    if (cause instanceof UploadTooLargeError) {
       return Response.json({ error: `File too large. Max ${MAX_UPLOAD_MB}MB.` }, { status: 413 });
     }
-    if (error instanceof UploadInvalidError) {
+    if (cause instanceof UploadInvalidError) {
       return Response.json({ error: 'Only MP4 video files are accepted.' }, { status: 415 });
     }
     throw error;
@@ -74,7 +66,7 @@ export async function POST(req: Request) {
     ({ id: broadcastId } = await getInjection('ICreateBroadcastController')({ filename, url, size }));
   } catch (error) {
     console.error(`Failed to register broadcast for ${filename}:`, error);
-    await unlink(path.join(UPLOADS_DIR, filename)).catch(() => {});
+    await uploads.delete(filename).catch(() => {});
     return Response.json({ error: 'Failed to register the upload. Try again.' }, { status: 500 });
   }
 

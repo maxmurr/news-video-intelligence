@@ -1,15 +1,8 @@
 /**
  * Shared filesystem contract for the binary artifacts that stay on disk:
  * where uploads and extracted frames live, what an acceptable upload
- * filename looks like, and the streaming upload protocol.
+ * filename looks like, and the upload guard protocol.
  */
-import { randomUUID } from 'node:crypto';
-import { once } from 'node:events';
-import { createWriteStream } from 'node:fs';
-import { mkdir, rename, unlink } from 'node:fs/promises';
-import { Readable } from 'node:stream';
-import type { ReadableStream as WebReadableStream } from 'node:stream/web';
-import { finished } from 'node:stream/promises';
 import path from 'node:path';
 
 export const PUBLIC_DIR = path.join(process.cwd(), 'public');
@@ -40,69 +33,52 @@ export async function requestedFilename(req: Request): Promise<string | null> {
   return isValidUploadFilename(filename) ? filename : null;
 }
 
-/** Upload exceeded the byte cap mid-stream; the temp file has been discarded. */
+/** Upload exceeded the byte cap mid-stream; nothing was persisted. */
 export class UploadTooLargeError extends Error {}
 
-/** Upload head failed validation (bad magic bytes or empty); temp file discarded. */
+/** Upload head failed validation (bad magic bytes or empty); nothing was persisted. */
 export class UploadInvalidError extends Error {}
 
 /**
- * Streams an upload straight to a temp file and renames on success, so a
- * multi-hundred-MB body never lands in memory. The byte cap and head check
- * both abort mid-stream — a too-large or non-matching upload is rejected
- * without buffering the whole thing first. Cleanup unlinks the temp file on
- * any failure so a rejected upload leaves nothing behind.
+ * Wraps an upload body so the byte cap and head check both abort mid-stream —
+ * a too-large or non-matching upload errors the stream before the storage
+ * adapter ever commits it, and the error aborts the source request body.
  */
-export async function streamUploadAtomic(
-  filePath: string,
+export function guardUploadStream(
   source: ReadableStream<Uint8Array>,
   {
     maxBytes,
     headBytes = 12,
     validateHead,
   }: { maxBytes: number; headBytes?: number; validateHead: (head: Buffer) => boolean },
-): Promise<number> {
-  await mkdir(path.dirname(filePath), { recursive: true });
-  const tmpPath = `${filePath}.${randomUUID()}.tmp`;
-  const input = Readable.fromWeb(source as WebReadableStream<Uint8Array>);
-  const out = createWriteStream(tmpPath);
-
+): ReadableStream<Uint8Array> {
   let total = 0;
-  const headParts: Buffer[] = [];
+  const headParts: Uint8Array[] = [];
   let headLen = 0;
   let validated = false;
 
-  const validate = (head: Buffer) => {
-    if (total === 0 || !validateHead(head)) throw new UploadInvalidError();
+  const validate = () => {
+    if (total === 0 || !validateHead(Buffer.concat(headParts))) throw new UploadInvalidError();
     validated = true;
   };
 
-  try {
-    for await (const chunk of input) {
-      const buf = chunk as Buffer;
-      total += buf.length;
-      if (total > maxBytes) throw new UploadTooLargeError();
+  return source.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        total += chunk.byteLength;
+        if (total > maxBytes) throw new UploadTooLargeError();
 
-      if (!validated) {
-        headParts.push(buf);
-        headLen += buf.length;
-        if (headLen >= headBytes) validate(Buffer.concat(headParts));
-      }
+        if (!validated) {
+          headParts.push(chunk);
+          headLen += chunk.byteLength;
+          if (headLen >= headBytes) validate();
+        }
 
-      if (!out.write(buf)) await once(out, 'drain');
-    }
-
-    if (!validated) validate(Buffer.concat(headParts));
-
-    out.end();
-    await finished(out);
-    await rename(tmpPath, filePath);
-    return total;
-  } catch (error) {
-    input.destroy();
-    if (!out.destroyed) out.destroy();
-    if (!out.closed) await once(out, 'close').catch(() => {});
-    await unlink(tmpPath).catch(() => {});
-    throw error;
-  }
+        controller.enqueue(chunk);
+      },
+      flush() {
+        if (!validated) validate();
+      },
+    }),
+  );
 }
