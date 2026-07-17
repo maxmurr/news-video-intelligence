@@ -1,8 +1,5 @@
 import { generateText, Output } from 'ai';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { z } from 'zod';
-import { PUBLIC_DIR } from '../lib/artifacts';
 
 // A different model family than the pipeline (Gemini) to avoid self-preference.
 const JUDGE_MODEL = 'anthropic/claude-sonnet-5';
@@ -31,10 +28,6 @@ export interface StageResult {
 
 export function check(name: string, pass: boolean, detail?: string): Check {
   return { name, pass, detail: pass ? undefined : detail };
-}
-
-export async function readArtifact(relativePath: string): Promise<string> {
-  return readFile(path.join(PUBLIC_DIR, relativePath), 'utf8');
 }
 
 const scoreSchema = z.object({

@@ -1,4 +1,5 @@
 import { start } from 'workflow/api';
+import { getInjection } from '@/di/container';
 import {
   isValidUploadFilename,
   streamUploadAtomic,
@@ -8,9 +9,9 @@ import {
 } from '@/lib/artifacts';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/broadcast-types';
 import { getBroadcast, listBroadcasts } from '@/lib/broadcasts';
-import { writeRunRecord } from '@/lib/run-record';
 import { runVideoPipeline } from '@/workflows/video-pipeline';
 import { randomUUID } from 'node:crypto';
+import { unlink } from 'node:fs/promises';
 import path from 'node:path';
 
 export async function GET(req: Request) {
@@ -64,9 +65,22 @@ export async function POST(req: Request) {
     throw error;
   }
 
+  // The broadcast row must exist before the workflow starts — its first step
+  // resolves the row by filename. Without the row the upload is invisible to
+  // the DB-driven listing, so compensate by discarding the file.
+  const url = `/uploads/${filename}`;
+  let broadcastId: string;
+  try {
+    ({ id: broadcastId } = await getInjection('ICreateBroadcastController')({ filename, url, size }));
+  } catch (error) {
+    console.error(`Failed to register broadcast for ${filename}:`, error);
+    await unlink(path.join(UPLOADS_DIR, filename)).catch(() => {});
+    return Response.json({ error: 'Failed to register the upload. Try again.' }, { status: 500 });
+  }
+
   // The upload is already persisted; a workflow-start failure must not turn a
   // successful upload into a 500 that hides the generated filename. The run
-  // record makes the failure visible to the broadcast page instead.
+  // row makes the failure visible to the broadcast page instead.
   let runId: string | null = null;
   try {
     ({ runId } = await start(runVideoPipeline, [filename]));
@@ -74,18 +88,10 @@ export async function POST(req: Request) {
     console.error(`Failed to start pipeline for ${filename}:`, error);
   }
   try {
-    await writeRunRecord(filename, runId);
+    await getInjection('ISaveRunController')({ broadcastId, runId });
   } catch (error) {
-    console.error(`Failed to write run record for ${filename}:`, error);
+    console.error(`Failed to save run for ${filename}:`, error);
   }
 
-  return Response.json(
-    {
-      filename,
-      url: `/uploads/${filename}`,
-      size,
-      runId,
-    },
-    { status: 201 },
-  );
+  return Response.json({ filename, url, size, runId }, { status: 201 });
 }

@@ -28,25 +28,14 @@
 /public/frames/*
 !/public/frames/.gitkeep
 
-# headlines
-/public/headlines/*
-!/public/headlines/.gitkeep
-
-# transcript
-/public/transcripts/*
-!/public/transcripts/.gitkeep
-
-# stories
-/public/stories/*
-!/public/stories/.gitkeep
-
-# pipeline run records
-/public/runs/*
-!/public/runs/.gitkeep
-
 # misc
 .DS_Store
 *.pem
+
+# local sqlite database
+sqlite.db
+sqlite.db-*
+*.sqlite
 
 # debug
 npm-debug.log*

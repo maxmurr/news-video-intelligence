@@ -10,14 +10,22 @@
     "lint": "eslint",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
     "prepare": "husky",
-    "evals": "bun evals/run.ts",
+    "evals": "tsx evals/run.ts",
     "workflow:web": "workflow web",
     "ai:devtools": "devtools"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.33",
     "@base-ui/react": "^1.6.0",
+    "@evyweb/ioctopus": "^1.4.1",
+    "@libsql/client": "^0.17.4",
     "@shadcn/react": "^0.2.1",
     "@streamdown/cjk": "^1.0.3",
     "@streamdown/code": "^1.1.1",
@@ -28,6 +36,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "cnfast": "^0.0.8",
+    "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.24.0",
     "media-chrome": "^4.19.2",
     "nanoid": "^6.0.0",
@@ -53,6 +62,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "^1.0.0",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "husky": "^9.1.7",
@@ -60,14 +70,15 @@
     "prettier": "^3.9.5",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.23.1",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   },
-  "ignoreScripts": [
-    "sharp",
-    "unrs-resolver"
-  ],
-  "trustedDependencies": [
-    "sharp",
-    "unrs-resolver"
-  ]
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp",
+      "unrs-resolver"
+    ]
+  }
 }

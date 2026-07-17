@@ -1,8 +1,8 @@
 /**
- * Single source of truth for the artifact shapes each pipeline stage writes
- * and the next stage reads. The producer generates against the schema and
- * the consumer parses with the same schema, so shape drift fails loudly
- * instead of surfacing as a misleading "file not found" downstream.
+ * Shapes shared by the pipeline stages: the structured-output schema the
+ * story-detection model generates against, and the item shapes stages return
+ * and downstream prompts consume. Persistence validation lives with the
+ * clean-architecture entities in src/entities/models.
  */
 import { z } from 'zod';
 import { TIMESTAMP_PATTERN } from './timestamps';
@@ -16,7 +16,7 @@ export const storySchema = z.object({
   endTime: timestampField.describe('MM:SS timestamp where the story ends, taken from the transcript'),
 });
 
-export const storiesFileSchema = z.object({
+export const storiesOutputSchema = z.object({
   stories: z.array(storySchema),
 });
 
@@ -25,29 +25,18 @@ export type Story = z.infer<typeof storySchema>;
 /** Word cap for generated headlines; the prompt and the eval enforce the same bound. */
 export const HEADLINE_MAX_WORDS = 12;
 
-export const headlineItemSchema = z.object({
-  startTime: timestampField,
-  endTime: timestampField,
-  headline: z.string(),
-  summary: z.string(),
-});
+export interface HeadlineItem {
+  startTime: string;
+  endTime: string;
+  headline: string;
+  summary: string;
+}
 
-export const headlinesFileSchema = z.object({
-  items: z.array(headlineItemSchema),
-});
-
-export type HeadlineItem = z.infer<typeof headlineItemSchema>;
-export type HeadlinesFile = z.infer<typeof headlinesFileSchema>;
-
-export const frameItemSchema = headlineItemSchema.omit({ summary: true }).extend({
-  frameTime: timestampField,
-  reason: z.string(),
-  frameUrl: z.string(),
-});
-
-export const framesFileSchema = z.object({
-  items: z.array(frameItemSchema),
-});
-
-export type FrameItem = z.infer<typeof frameItemSchema>;
-export type FramesFile = z.infer<typeof framesFileSchema>;
+export interface FrameItem {
+  startTime: string;
+  endTime: string;
+  headline: string;
+  frameTime: string;
+  reason: string;
+  frameUrl: string;
+}

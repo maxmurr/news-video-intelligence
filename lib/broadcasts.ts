@@ -1,14 +1,15 @@
 /**
- * Read-side view over the pipeline artifacts: which uploads exist, how far
- * each one has progressed, and the merged headline+frame story cards the
- * newspaper page renders. Never triggers generation — reading a broadcast
- * that is mid-pipeline just reports the stages that exist so far.
+ * Read-side view over the analysis data: which broadcasts exist, how far
+ * each one's pipeline has progressed, and the merged headline+frame story
+ * cards the newspaper page renders. Composes the clean-architecture
+ * controllers into the wire contract from broadcast-types. Never triggers
+ * generation — reading a broadcast that is mid-pipeline just reports the
+ * stages that exist so far.
  */
 import 'server-only';
-import { readdir, stat } from 'node:fs/promises';
-import path from 'node:path';
 import { getRun } from 'workflow/api';
-import { isValidUploadFilename, readArtifactJson, UPLOADS_DIR } from './artifacts';
+import { getInjection } from '@/di/container';
+import { NotFoundError } from '@/src/entities/errors/common';
 import {
   isPipelineComplete,
   type BroadcastDetail,
@@ -17,59 +18,42 @@ import {
   type BroadcastSummary,
   type StoryCard,
 } from './broadcast-types';
-import { readRunRecord } from './run-record';
-import { framesPath, headlinesPath, storiesPath, transcriptPath } from './pipeline';
-import {
-  framesFileSchema,
-  headlinesFileSchema,
-  type FrameItem,
-  type FramesFile,
-  type HeadlineItem,
-  type HeadlinesFile,
-} from './schemas';
-
-async function artifactExists(filePath: string): Promise<boolean> {
-  try {
-    await stat(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-interface BroadcastArtifacts {
-  stages: BroadcastStages;
-  headlinesFile: HeadlinesFile | null;
-  framesFile: FramesFile | null;
-}
 
 /**
- * One read per artifact: stage flags for the cheap text artifacts come from a
- * stat, and the two JSON artifacts the UI renders are parsed exactly once and
- * shared by every consumer (stage flags, summary, story cards).
+ * One query per child aggregate, shared by every consumer (stage flags,
+ * summary, story cards, run health). The transcript is fetched only for its
+ * existence — a dedicated has-transcript read is not worth a use case yet.
  */
-async function readBroadcastArtifacts(filename: string): Promise<BroadcastArtifacts> {
-  const [transcript, stories, headlinesFile, framesFile] = await Promise.all([
-    artifactExists(transcriptPath(filename)),
-    artifactExists(storiesPath(filename)),
-    readArtifactJson(headlinesPath(filename), headlinesFileSchema),
-    readArtifactJson(framesPath(filename), framesFileSchema),
+async function loadChildren(broadcastId: string) {
+  const [transcript, stories, headlines, frames, run] = await Promise.all([
+    getInjection('IGetTranscriptController')(broadcastId),
+    getInjection('IGetStoriesController')(broadcastId),
+    getInjection('IGetHeadlinesController')(broadcastId),
+    getInjection('IGetFramesController')(broadcastId),
+    getInjection('IGetRunController')(broadcastId),
   ]);
-  return {
-    stages: {
-      transcript,
-      stories,
-      headlines: headlinesFile !== null,
-      frames: framesFile !== null,
-    },
-    headlinesFile,
-    framesFile,
+
+  const stages: BroadcastStages = {
+    transcript: transcript !== null,
+    stories: stories.length > 0,
+    headlines: headlines.length > 0,
+    frames: frames.length > 0,
   };
+
+  return { stages, headlines, frames, run };
 }
 
-function mergeStories(headlines: HeadlineItem[], frames: FrameItem[] | null): StoryCard[] {
+type BroadcastChildren = Awaited<ReturnType<typeof loadChildren>>;
+
+interface BroadcastRow {
+  filename: string;
+  url: string;
+  uploadedAt: string;
+}
+
+function mergeStories(headlines: BroadcastChildren['headlines'], frames: BroadcastChildren['frames']): StoryCard[] {
   return headlines.map((item, i) => {
-    const frame = frames?.[i] ?? null;
+    const frame = frames[i] ?? null;
     return {
       headline: item.headline,
       summary: item.summary,
@@ -81,82 +65,62 @@ function mergeStories(headlines: HeadlineItem[], frames: FrameItem[] | null): St
   });
 }
 
-function summaryFrom(filename: string, uploadedAt: Date, artifacts: BroadcastArtifacts): BroadcastSummary {
-  const headlines = artifacts.headlinesFile?.items ?? [];
+function summaryFrom(broadcast: BroadcastRow, children: BroadcastChildren): BroadcastSummary {
+  const { headlines, frames } = children;
   return {
-    filename,
-    url: `/uploads/${filename}`,
-    uploadedAt: uploadedAt.toISOString(),
-    stages: artifacts.stages,
+    filename: broadcast.filename,
+    url: broadcast.url,
+    uploadedAt: broadcast.uploadedAt,
+    stages: children.stages,
     storyCount: headlines.length > 0 ? headlines.length : null,
     topHeadline: headlines[0]?.headline?.trim() || null,
-    thumbnailUrl: artifacts.framesFile?.items[0]?.frameUrl ?? null,
+    thumbnailUrl: frames[0]?.frameUrl ?? null,
   };
 }
 
 export async function listBroadcasts(): Promise<BroadcastSummary[]> {
-  let entries: string[];
-  try {
-    entries = await readdir(UPLOADS_DIR);
-  } catch {
-    return [];
-  }
-
-  // The strict filename check keeps the listing consistent with every route:
-  // a stray file in uploads that routes would reject must not become a card.
-  const uploads = entries.filter(isValidUploadFilename);
+  const broadcasts = await getInjection('IGetBroadcastsController')();
   const summaries = await Promise.all(
-    uploads.map(async filename => {
-      const [statResult, artifacts] = await Promise.all([
-        stat(path.join(UPLOADS_DIR, filename)).catch(() => null),
-        readBroadcastArtifacts(filename),
-      ]);
-      // Deleted between readdir and stat — skip it rather than failing the listing.
-      if (statResult === null) return null;
-      return summaryFrom(filename, statResult.mtime, artifacts);
-    }),
+    broadcasts.map(async broadcast => summaryFrom(broadcast, await loadChildren(broadcast.id))),
   );
-
-  return summaries
-    .filter((summary): summary is BroadcastSummary => summary !== null)
-    .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+  return summaries.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
 }
 
 /**
  * Health of the run behind an incomplete pipeline. A complete pipeline never
- * queries the engine — the artifacts are the proof. A missing record predates
- * run tracking, and an engine query failure must not break the read side, so
- * both degrade to `unknown` rather than throwing.
+ * queries the engine — the stored stages are the proof. A missing run row
+ * predates run tracking, and an engine query failure must not break the read
+ * side, so both degrade to `unknown` rather than throwing.
  */
-async function resolveRun(filename: string, stages: BroadcastStages): Promise<BroadcastRun> {
+async function resolveRun(stages: BroadcastStages, runRow: BroadcastChildren['run']): Promise<BroadcastRun> {
   if (isPipelineComplete(stages)) return { status: 'completed', startedAt: null };
 
-  const record = await readRunRecord(filename);
-  if (record === null) return { status: 'unknown', startedAt: null };
-  if (record.runId === null) return { status: 'not-started', startedAt: record.startedAt };
+  if (runRow === null) return { status: 'unknown', startedAt: null };
+  if (runRow.runId === null) return { status: 'not-started', startedAt: runRow.startedAt };
 
   try {
-    const status = await getRun(record.runId).status;
-    return { status, startedAt: record.startedAt };
+    const status = await getRun(runRow.runId).status;
+    return { status, startedAt: runRow.startedAt };
   } catch {
-    return { status: 'unknown', startedAt: record.startedAt };
+    return { status: 'unknown', startedAt: runRow.startedAt };
   }
 }
 
-/** Full detail for one broadcast, or null when the upload doesn't exist. */
+/** Full detail for one broadcast, or null when it doesn't exist. */
 export async function getBroadcast(filename: string): Promise<BroadcastDetail | null> {
-  const [statResult, artifacts] = await Promise.all([
-    stat(path.join(UPLOADS_DIR, filename)).catch(() => null),
-    readBroadcastArtifacts(filename),
-  ]);
-  if (statResult === null) return null;
-  const uploadedAt = statResult.mtime;
+  let broadcast;
+  try {
+    broadcast = await getInjection('IGetBroadcastByFilenameController')(filename);
+  } catch (error) {
+    if (error instanceof NotFoundError) return null;
+    throw error;
+  }
+
+  const children = await loadChildren(broadcast.id);
 
   return {
-    ...summaryFrom(filename, uploadedAt, artifacts),
-    stories: artifacts.headlinesFile
-      ? mergeStories(artifacts.headlinesFile.items, artifacts.framesFile?.items ?? null)
-      : [],
-    run: await resolveRun(filename, artifacts.stages),
+    ...summaryFrom(broadcast, children),
+    stories: mergeStories(children.headlines, children.frames),
+    run: await resolveRun(children.stages, children.run),
   };
 }

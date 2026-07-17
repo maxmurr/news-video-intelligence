@@ -1,6 +1,6 @@
 /**
  * Model assignment per pipeline stage, sized to the job. Verified with
- * `bun run evals` — when changing a model here, clear that stage's cached
+ * `pnpm evals` — when changing a model here, clear that stage's cached
  * artifacts (and downstream ones) and re-run the evals.
  *
  * Gateway pricing reference (per M tokens, input/output):

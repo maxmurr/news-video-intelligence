@@ -7,10 +7,11 @@ import {
   type UIMessage,
   validateUIMessages,
 } from 'ai';
-import { isValidUploadFilename, readArtifactJson, readCachedArtifact } from '@/lib/artifacts';
+import { getInjection } from '@/di/container';
+import { isValidUploadFilename } from '@/lib/artifacts';
 import { MODELS } from '@/lib/models';
-import { formatStoryList, headlinesPath, transcriptPath } from '@/lib/pipeline';
-import { headlinesFileSchema } from '@/lib/schemas';
+import { formatStoryList } from '@/lib/pipeline';
+import { NotFoundError } from '@/src/entities/errors/common';
 
 /**
  * Grounds every answer in the broadcast: the full timestamped transcript plus
@@ -60,19 +61,29 @@ export async function POST(req: Request) {
     return new Response('Invalid message history.', { status: 400 });
   }
 
-  const [transcript, headlinesFile] = await Promise.all([
-    readCachedArtifact(transcriptPath(filename)),
-    readArtifactJson(headlinesPath(filename), headlinesFileSchema),
+  let broadcastId: string;
+  try {
+    ({ id: broadcastId } = await getInjection('IGetBroadcastByFilenameController')(filename));
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return new Response(`File not found: ${filename}`, { status: 404 });
+    }
+    throw error;
+  }
+
+  const [transcript, headlines] = await Promise.all([
+    getInjection('IGetTranscriptController')(broadcastId),
+    getInjection('IGetHeadlinesController')(broadcastId),
   ]);
   if (transcript === null) {
     return new Response('This broadcast is still being transcribed. Try again shortly.', { status: 409 });
   }
 
-  const storyList = headlinesFile ? formatStoryList(headlinesFile.items, s => s.headline) : null;
+  const storyList = headlines.length > 0 ? formatStoryList(headlines, s => s.headline) : null;
 
   const result = streamText({
     model: MODELS.chat,
-    system: broadcastSystemPrompt(transcript, storyList),
+    system: broadcastSystemPrompt(transcript.text, storyList),
     messages: await convertToModelMessages(messages),
     experimental_transform: smoothStream({
       delayInMs: 20,

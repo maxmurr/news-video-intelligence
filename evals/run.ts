@@ -1,26 +1,31 @@
 /**
  * Pipeline evals. For every video in public/uploads/, runs each pipeline stage
- * (transcribe -> stories -> headlines -> frames) and scores the artifacts with
+ * (transcribe -> stories -> headlines -> frames) and scores the outputs with
  * deterministic invariant checks plus an LLM judge (different model family
  * than the pipeline to avoid self-preference).
  *
  * Stages are called directly against lib/pipeline — the same code path the
- * durable workflow runs in production — so no dev server is required.
+ * durable workflow runs in production — so no dev server is required. Each
+ * eval consumes the stage's return value; a second run gets the rows already
+ * stored in the database. Fixture videos dropped straight into public/uploads
+ * get their broadcast row created here before the stages run.
  *
  * Usage:
- *   bun evals/run.ts                 # eval all videos, reuse cached artifacts
- *   bun evals/run.ts --video <name>  # eval one video
+ *   pnpm evals                       # eval all videos, reuse stored stages
+ *   pnpm evals --video <name>        # eval one video
  *
  * Requires AI_GATEWAY_API_KEY.
  */
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { getInjection } from '../di/container';
 import { PUBLIC_DIR } from '../lib/artifacts';
 import { detectStories, extractFrames, generateHeadlines, transcribeVideo } from '../lib/pipeline';
-import { framesFileSchema, HEADLINE_MAX_WORDS, headlinesFileSchema, storiesFileSchema } from '../lib/schemas';
+import { HEADLINE_MAX_WORDS, type HeadlineItem, type Story } from '../lib/schemas';
 import { lineTimestamp, timestampToSeconds, transcriptSpan, transcriptTimestamps } from '../lib/timestamps';
 import { videoDurationSeconds } from '../lib/video';
-import { check, judge, readArtifact, type Check, type JudgeResult, type StageResult } from './lib';
+import { NotFoundError } from '../src/entities/errors/common';
+import { check, judge, type Check, type JudgeResult, type StageResult } from './lib';
 
 const RESULTS_DIR = path.join(process.cwd(), 'evals', 'results');
 
@@ -28,10 +33,24 @@ const RESULTS_DIR = path.join(process.cwd(), 'evals', 'results');
 // seconds of gap between consecutive stories (but never overlap).
 const STORY_GAP_SLACK_SEC = 15;
 
-async function evalTranscribe(filename: string): Promise<StageResult> {
+/**
+ * Stages resolve their broadcast row by filename and never create it, so a
+ * fixture video dropped straight into public/uploads needs its row minted
+ * before the first stage runs.
+ */
+async function ensureBroadcast(filename: string): Promise<void> {
+  try {
+    await getInjection('IGetBroadcastByFilenameController')(filename);
+  } catch (error) {
+    if (!(error instanceof NotFoundError)) throw error;
+    const { size } = await stat(path.join(PUBLIC_DIR, 'uploads', filename));
+    await getInjection('ICreateBroadcastController')({ filename, url: `/uploads/${filename}`, size });
+  }
+}
+
+async function evalTranscribe(filename: string): Promise<{ result: StageResult; transcript: string }> {
   const started = Date.now();
-  await transcribeVideo(filename);
-  const transcript = await readArtifact(`transcripts/${filename}.txt`);
+  const { data: transcript } = await transcribeVideo(filename);
   const videoSec = await videoDurationSeconds(path.join(PUBLIC_DIR, 'uploads', filename));
 
   const timestamps = transcriptTimestamps(transcript);
@@ -72,14 +91,14 @@ async function evalTranscribe(filename: string): Promise<StageResult> {
     ),
   ];
 
-  return finalize('transcribe', checks, judges, started);
+  return { result: finalize('transcribe', checks, judges, started), transcript };
 }
 
-async function evalStories(filename: string): Promise<StageResult> {
+async function evalStories(filename: string, transcript: string): Promise<{ result: StageResult; stories: Story[] }> {
   const started = Date.now();
-  await detectStories(filename);
-  const transcript = await readArtifact(`transcripts/${filename}.txt`);
-  const { stories } = storiesFileSchema.parse(JSON.parse(await readArtifact(`stories/${filename}.json`)));
+  const {
+    data: { stories },
+  } = await detectStories(filename);
 
   const timestamps = transcriptTimestamps(transcript);
   const tsSet = new Set(timestamps);
@@ -113,15 +132,18 @@ async function evalStories(filename: string): Promise<StageResult> {
     ),
   ];
 
-  return finalize('stories', checks, judges, started);
+  return { result: finalize('stories', checks, judges, started), stories };
 }
 
-async function evalHeadlines(filename: string): Promise<StageResult> {
+async function evalHeadlines(
+  filename: string,
+  transcript: string,
+  stories: Story[],
+): Promise<{ result: StageResult; headlines: HeadlineItem[] }> {
   const started = Date.now();
-  await generateHeadlines(filename);
-  const transcript = await readArtifact(`transcripts/${filename}.txt`);
-  const { stories } = storiesFileSchema.parse(JSON.parse(await readArtifact(`stories/${filename}.json`)));
-  const { items } = headlinesFileSchema.parse(JSON.parse(await readArtifact(`headlines/${filename}.json`)));
+  const {
+    data: { items },
+  } = await generateHeadlines(filename);
 
   const aligned = items.every((h, i) => h.startTime === stories[i]?.startTime && h.endTime === stories[i]?.endTime);
   const headlineLengths = items.map(h => h.headline.split(/\s+/).length);
@@ -151,15 +173,14 @@ async function evalHeadlines(filename: string): Promise<StageResult> {
     ),
   ];
 
-  return finalize('headlines', checks, judges, started);
+  return { result: finalize('headlines', checks, judges, started), headlines: items };
 }
 
-async function evalFrames(filename: string): Promise<StageResult> {
+async function evalFrames(filename: string, transcript: string, headlines: HeadlineItem[]): Promise<StageResult> {
   const started = Date.now();
-  await extractFrames(filename);
-  const transcript = await readArtifact(`transcripts/${filename}.txt`);
-  const { items } = framesFileSchema.parse(JSON.parse(await readArtifact(`frames/${filename}.json`)));
-  const { items: headlines } = headlinesFileSchema.parse(JSON.parse(await readArtifact(`headlines/${filename}.json`)));
+  const {
+    data: { items },
+  } = await extractFrames(filename);
 
   const inSpan = items.every(f => {
     const t = timestampToSeconds(f.frameTime);
@@ -250,18 +271,17 @@ async function main() {
     process.exit(1);
   }
 
-  const stages = [evalTranscribe, evalStories, evalHeadlines, evalFrames];
-
   // Videos are independent — eval them concurrently. Stages within a video
-  // stay sequential because each stage's artifact feeds the next. Output is
+  // stay sequential because each stage's output feeds the next. Output is
   // buffered per video so interleaved runs still print readably.
   const perVideo = await Promise.all(
     videos.map(async video => {
-      const results: StageResult[] = [];
-      for (const stage of stages) {
-        results.push(await stage(video));
-      }
-      return [video, results] as const;
+      await ensureBroadcast(video);
+      const transcribe = await evalTranscribe(video);
+      const stories = await evalStories(video, transcribe.transcript);
+      const headlines = await evalHeadlines(video, transcribe.transcript, stories.stories);
+      const frames = await evalFrames(video, transcribe.transcript, headlines.headlines);
+      return [video, [transcribe.result, stories.result, headlines.result, frames]] as const;
     }),
   );
 

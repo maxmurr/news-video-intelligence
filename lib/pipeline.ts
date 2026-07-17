@@ -1,35 +1,21 @@
 /**
  * Pipeline stage logic, decoupled from HTTP. Each stage is keyed by upload
- * filename, reads its inputs from disk, generates its artifact, and persists
- * it atomically. Stages are cache-aware: a second call returns the existing
- * artifact instead of regenerating. Both the API routes and the durable
+ * filename, reads its inputs from the database through the clean-architecture
+ * controllers, generates its output, and persists it the same way. Only the
+ * binaries stay on disk: the source MP4 in public/uploads and the extracted
+ * frame JPEGs in public/frames. Stages are cache-aware: a second call returns
+ * the stored rows instead of regenerating. Both the API routes and the durable
  * workflow drive these functions, so the prompts and shapes live in one place.
  */
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { mkdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import {
-  FRAMES_DIR,
-  HEADLINES_DIR,
-  parseCachedArtifact,
-  readArtifactJson,
-  readCachedArtifact,
-  STORIES_DIR,
-  TRANSCRIPTS_DIR,
-  UPLOADS_DIR,
-  writeArtifactAtomic,
-} from './artifacts';
+import { getInjection } from '@/di/container';
+import { InputParseError, NotFoundError } from '@/src/entities/errors/common';
+import { FRAMES_DIR, UPLOADS_DIR } from './artifacts';
 import { MODELS } from './models';
-import {
-  framesFileSchema,
-  HEADLINE_MAX_WORDS,
-  headlinesFileSchema,
-  storiesFileSchema,
-  type FrameItem,
-  type HeadlineItem,
-  type Story,
-} from './schemas';
+import { HEADLINE_MAX_WORDS, storiesOutputSchema, type FrameItem, type HeadlineItem, type Story } from './schemas';
 import {
   lineTimestamp,
   normalizeTranscript,
@@ -65,22 +51,6 @@ function uploadPath(filename: string): string {
   return path.join(UPLOADS_DIR, filename);
 }
 
-export function transcriptPath(filename: string): string {
-  return path.join(TRANSCRIPTS_DIR, `${filename}.txt`);
-}
-
-export function storiesPath(filename: string): string {
-  return path.join(STORIES_DIR, `${filename}.json`);
-}
-
-export function headlinesPath(filename: string): string {
-  return path.join(HEADLINES_DIR, `${filename}.json`);
-}
-
-export function framesPath(filename: string): string {
-  return path.join(FRAMES_DIR, `${filename}.json`);
-}
-
 /** Resolves an upload to its path, or throws a 404 PipelineError when absent. */
 export async function resolveUpload(filename: string): Promise<string> {
   const videoPath = uploadPath(filename);
@@ -93,45 +63,70 @@ export async function resolveUpload(filename: string): Promise<string> {
 }
 
 /**
- * Cache-hit path for a JSON stage: read, validate, and wrap the artifact with
- * its filename. Returns null when there is no artifact yet, or when a stored
- * one is malformed — either way the caller regenerates.
+ * Stages never create the aggregate root — the upload route is the sole
+ * creator. A stage running against a filename with no broadcast row is a
+ * broken invocation, not a recoverable state.
  */
-async function readCachedJsonStage<T>(
-  filePath: string,
-  schema: z.ZodType<T>,
-  filename: string,
-): Promise<StageResult<{ filename: string } & T> | null> {
-  const parsed = await readArtifactJson(filePath, schema);
-  if (parsed === null) return null;
-  return { data: { filename, ...parsed }, cached: true };
-}
-
-/** Persists a freshly generated artifact and returns it as a cache miss. */
-async function writeJsonArtifact<T extends object>(filePath: string, data: T): Promise<StageResult<T>> {
-  await writeArtifactAtomic(filePath, JSON.stringify(data, null, 2));
-  return { data, cached: false };
-}
-
-/** Loads a required upstream JSON artifact: 404 when absent, 500 when malformed. */
-async function loadRequiredArtifact<T>(
-  filePath: string,
-  schema: z.ZodType<T>,
-  messages: { notFound: string; malformed: string },
-): Promise<T> {
-  const raw = await readCachedArtifact(filePath);
-  if (raw === null) throw new PipelineError(messages.notFound, 404);
-  const parsed = parseCachedArtifact(raw, schema);
-  if (parsed === null) throw new PipelineError(messages.malformed, 500);
-  return parsed;
-}
-
-async function readTranscript(filename: string): Promise<string> {
-  const transcript = await readCachedArtifact(transcriptPath(filename));
-  if (transcript === null) {
-    throw new PipelineError(`No transcript found for ${filename}. Run /api/transcribe first.`, 404);
+async function resolveBroadcastId(filename: string): Promise<string> {
+  try {
+    const broadcast = await getInjection('IGetBroadcastByFilenameController')(filename);
+    return broadcast.id;
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      throw new PipelineError(`No broadcast for ${filename}. Upload it first.`, 404);
+    }
+    throw error;
   }
-  return transcript;
+}
+
+/**
+ * A controller rejecting generated data is deterministic — the same output
+ * would fail again — so it must surface as a fatal PipelineError rather than
+ * a plain Error the workflow would burn retries on.
+ */
+async function persist<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    if (error instanceof InputParseError) {
+      throw new PipelineError(`Generated data failed validation: ${error.message}`, 500);
+    }
+    throw error;
+  }
+}
+
+async function requireTranscript(broadcastId: string, filename: string): Promise<string> {
+  const transcript = await getInjection('IGetTranscriptController')(broadcastId);
+  if (transcript === null) {
+    throw new PipelineError(`No transcript found for ${filename}. Run the transcribe stage first.`, 404);
+  }
+  return transcript.text;
+}
+
+function toStory(row: { title: string; summary: string; startTime: string; endTime: string }): Story {
+  return { title: row.title, summary: row.summary, startTime: row.startTime, endTime: row.endTime };
+}
+
+function toHeadlineItem(row: { startTime: string; endTime: string; headline: string; summary: string }): HeadlineItem {
+  return { startTime: row.startTime, endTime: row.endTime, headline: row.headline, summary: row.summary };
+}
+
+function toFrameItem(row: {
+  startTime: string;
+  endTime: string;
+  headline: string;
+  frameTime: string;
+  reason: string;
+  frameUrl: string;
+}): FrameItem {
+  return {
+    startTime: row.startTime,
+    endTime: row.endTime,
+    headline: row.headline,
+    frameTime: row.frameTime,
+    reason: row.reason,
+    frameUrl: row.frameUrl,
+  };
 }
 
 /**
@@ -169,10 +164,10 @@ export function isValidTranscript(text: string): boolean {
 }
 
 export async function transcribeVideo(filename: string): Promise<StageResult<string>> {
-  const transcriptFile = transcriptPath(filename);
+  const broadcastId = await resolveBroadcastId(filename);
 
-  const cached = await readCachedArtifact(transcriptFile);
-  if (cached !== null) return { data: cached, cached: true };
+  const existing = await getInjection('IGetTranscriptController')(broadcastId);
+  if (existing !== null) return { data: existing.text, cached: true };
 
   const audio = await extractSpeechAudio(await resolveUpload(filename));
 
@@ -184,21 +179,21 @@ export async function transcribeVideo(filename: string): Promise<StageResult<str
     throw new Error(`Transcript for ${filename} does not start with a timestamp. Got: ${text.slice(0, 80)}`);
   }
 
-  await writeArtifactAtomic(transcriptFile, text);
+  await persist(() => getInjection('ISaveTranscriptController')({ broadcastId, text }));
   return { data: text, cached: false };
 }
 
 export async function detectStories(filename: string): Promise<StageResult<{ filename: string; stories: Story[] }>> {
-  const file = storiesPath(filename);
+  const broadcastId = await resolveBroadcastId(filename);
 
-  const hit = await readCachedJsonStage(file, storiesFileSchema, filename);
-  if (hit) return hit;
+  const existing = await getInjection('IGetStoriesController')(broadcastId);
+  if (existing.length > 0) return { data: { filename, stories: existing.map(toStory) }, cached: true };
 
-  const transcript = await readTranscript(filename);
+  const transcript = await requireTranscript(broadcastId, filename);
 
   const result = await generateText({
     model: MODELS.stories,
-    output: Output.object({ schema: storiesFileSchema }),
+    output: Output.object({ schema: storiesOutputSchema }),
     system:
       'You are a news video segmentation engine. You split news transcripts into distinct stories. ' +
       'A story boundary is where the topic changes to a different news item, not where speakers change turns ' +
@@ -208,7 +203,9 @@ export async function detectStories(filename: string): Promise<StageResult<{ fil
     prompt: `Detect the story boundaries in this timestamped news transcript:\n\n${transcript}`,
   });
 
-  return writeJsonArtifact(file, { filename, ...result.output });
+  const { stories } = result.output;
+  await persist(() => getInjection('IReplaceStoriesController')({ broadcastId, items: stories }));
+  return { data: { filename, stories }, cached: false };
 }
 
 /**
@@ -228,22 +225,20 @@ export function formatStoryList<T extends { startTime: string; endTime: string; 
 export async function generateHeadlines(
   filename: string,
 ): Promise<StageResult<{ filename: string; items: HeadlineItem[] }>> {
-  const file = headlinesPath(filename);
+  const broadcastId = await resolveBroadcastId(filename);
 
-  const hit = await readCachedJsonStage(file, headlinesFileSchema, filename);
-  if (hit) return hit;
+  const existing = await getInjection('IGetHeadlinesController')(broadcastId);
+  if (existing.length > 0) return { data: { filename, items: existing.map(toHeadlineItem) }, cached: true };
 
-  const [transcript, { stories }] = await Promise.all([
-    readTranscript(filename),
-    loadRequiredArtifact(storiesPath(filename), storiesFileSchema, {
-      notFound: `No stories found for ${filename}. Run /api/stories first.`,
-      malformed: `Stories file for ${filename} is malformed. Regenerate it via /api/stories.`,
-    }),
+  const [transcript, storyRows] = await Promise.all([
+    requireTranscript(broadcastId, filename),
+    getInjection('IGetStoriesController')(broadcastId),
   ]);
 
-  if (stories.length === 0) {
-    throw new PipelineError(`Stories file for ${filename} contains no stories.`, 422);
+  if (storyRows.length === 0) {
+    throw new PipelineError(`No stories found for ${filename}. Run the stories stage first.`, 404);
   }
+  const stories = storyRows.map(toStory);
 
   // Length is pinned so each item lines up 1:1 with the input stories.
   const headlinesSchema = z.object({
@@ -270,17 +265,15 @@ export async function generateHeadlines(
     prompt: `Here are the detected stories:\n\n${storyList}\n\nFull timestamped transcript:\n\n${transcript}`,
   });
 
-  const data = {
-    filename,
-    items: result.output.items.map((item, i) => ({
-      startTime: stories[i].startTime,
-      endTime: stories[i].endTime,
-      headline: item.headline,
-      summary: item.summary,
-    })),
-  };
+  const items = result.output.items.map((item, i) => ({
+    startTime: stories[i].startTime,
+    endTime: stories[i].endTime,
+    headline: item.headline,
+    summary: item.summary,
+  }));
 
-  return writeJsonArtifact(file, data);
+  await persist(() => getInjection('IReplaceHeadlinesController')({ broadcastId, items }));
+  return { data: { filename, items }, cached: false };
 }
 
 // Frames this close to a story boundary are transition shots where the
@@ -343,19 +336,16 @@ async function pickRepresentativeFrames(filename: string, headlines: HeadlineIte
 }
 
 export async function extractFrames(filename: string): Promise<StageResult<{ filename: string; items: FrameItem[] }>> {
-  const file = framesPath(filename);
+  const broadcastId = await resolveBroadcastId(filename);
 
-  const hit = await readCachedJsonStage(file, framesFileSchema, filename);
-  if (hit) return hit;
+  const existing = await getInjection('IGetFramesController')(broadcastId);
+  if (existing.length > 0) return { data: { filename, items: existing.map(toFrameItem) }, cached: true };
 
-  const { items: headlines } = await loadRequiredArtifact(headlinesPath(filename), headlinesFileSchema, {
-    notFound: `No headlines found for ${filename}. Run /api/headlines first.`,
-    malformed: `Headlines file for ${filename} is malformed. Regenerate it via /api/headlines.`,
-  });
-
-  if (headlines.length === 0) {
-    throw new PipelineError(`Headlines file for ${filename} contains no items.`, 422);
+  const headlineRows = await getInjection('IGetHeadlinesController')(broadcastId);
+  if (headlineRows.length === 0) {
+    throw new PipelineError(`No headlines found for ${filename}. Run the headlines stage first.`, 404);
   }
+  const headlines = headlineRows.map(toHeadlineItem);
 
   const videoPath = uploadPath(filename);
 
@@ -400,5 +390,6 @@ export async function extractFrames(filename: string): Promise<StageResult<{ fil
     }),
   );
 
-  return writeJsonArtifact(file, { filename, items });
+  await persist(() => getInjection('IReplaceFramesController')({ broadcastId, items }));
+  return { data: { filename, items }, cached: false };
 }
