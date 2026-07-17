@@ -6,6 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import type { z } from 'zod';
 
 export const PUBLIC_DIR = path.join(process.cwd(), 'public');
 export const UPLOADS_DIR = path.join(PUBLIC_DIR, 'uploads');
@@ -20,6 +21,10 @@ export const FRAMES_DIR = path.join(PUBLIC_DIR, 'frames');
  */
 const FILENAME_PATTERN = /^[\w-]+\.mp4$/;
 
+export function isValidUploadFilename(value: unknown): value is string {
+  return typeof value === 'string' && FILENAME_PATTERN.test(value);
+}
+
 /**
  * Parses the request body and returns a validated upload filename, or null
  * when the body is malformed JSON or the filename fails validation.
@@ -31,7 +36,7 @@ export async function requestedFilename(req: Request): Promise<string | null> {
   } catch {
     return null;
   }
-  return typeof filename === 'string' && FILENAME_PATTERN.test(filename) ? filename : null;
+  return isValidUploadFilename(filename) ? filename : null;
 }
 
 /** Reads a cached artifact, or returns null when it doesn't exist yet. */
@@ -41,6 +46,26 @@ export async function readCachedArtifact(filePath: string): Promise<string | nul
   } catch {
     return null;
   }
+}
+
+/** Parses and validates a stored artifact, or returns null when it is malformed. */
+export function parseCachedArtifact<T>(raw: string, schema: z.ZodType<T>): T | null {
+  try {
+    return schema.parse(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads and validates a JSON artifact, or returns null when it doesn't exist
+ * yet or is malformed. Callers that must tell those cases apart compose
+ * readCachedArtifact + parseCachedArtifact instead.
+ */
+export async function readArtifactJson<T>(filePath: string, schema: z.ZodType<T>): Promise<T | null> {
+  const raw = await readCachedArtifact(filePath);
+  if (raw === null) return null;
+  return parseCachedArtifact(raw, schema);
 }
 
 /**

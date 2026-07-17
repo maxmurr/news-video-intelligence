@@ -2060,6 +2060,14 @@ function MediaPlayerSeek(props: MediaPlayerSeekProps) {
     };
   }, [thumbnail?.coords, thumbnail?.src]);
 
+  // Base UI requires max > min; seekable is [0, 0] until metadata loads.
+  const hasSeekableRange = seekableEnd > seekableStart;
+  const sliderMin = seekableStart;
+  const sliderMax = hasSeekableRange ? seekableEnd : seekableStart + 1;
+  const sliderValue = hasSeekableRange
+    ? Math.min(Math.max(displayValue, seekableStart), seekableEnd)
+    : seekableStart;
+
   const SeekSlider = (
     <div data-slot="media-player-seek-container" className="relative w-full">
       <SliderPrimitive.Root
@@ -2068,17 +2076,17 @@ function MediaPlayerSeek(props: MediaPlayerSeekProps) {
         data-hovering={seekState.isHovering ? "" : undefined}
         data-slider=""
         data-slot="media-player-seek"
-        disabled={isDisabled}
+        disabled={isDisabled || !hasSeekableRange}
         {...seekProps}
         ref={seekRef}
-        min={seekableStart}
-        max={seekableEnd}
+        min={sliderMin}
+        max={sliderMax}
         step={0.01}
         className={cn(
           "relative flex w-full touch-none select-none items-center data-disabled:pointer-events-none data-disabled:opacity-50",
           className,
         )}
-        value={[displayValue]}
+        value={[sliderValue]}
         onValueChange={onSeek}
         onValueCommitted={onSeekCommit}
         onPointerEnter={onPointerEnter}
@@ -3106,7 +3114,7 @@ function MediaPlayerTooltip(props: MediaPlayerTooltipProps) {
               {shortcut.map((shortcutKey) => (
                 <kbd
                   key={shortcutKey}
-                  className="select-none rounded border bg-secondary px-1.5 py-0.5 font-mono text-[11.2px] text-foreground shadow-xs"
+                  className="select-none rounded border bg-secondary px-1.5 py-0.5 font-mono text-xs text-foreground shadow-xs"
                 >
                   <abbr title={shortcutKey} className="no-underline">
                     {shortcutKey}
@@ -3118,7 +3126,7 @@ function MediaPlayerTooltip(props: MediaPlayerTooltipProps) {
             shortcut && (
               <kbd
                 key={shortcut}
-                className="select-none rounded border bg-secondary px-1.5 py-px font-mono text-[11.2px] text-foreground shadow-xs"
+                className="select-none rounded border bg-secondary px-1.5 py-px font-mono text-xs text-foreground shadow-xs"
               >
                 <abbr title={shortcut} className="no-underline">
                   {shortcut}

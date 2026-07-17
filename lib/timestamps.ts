@@ -7,6 +7,9 @@
 /** A full timestamp string: MM:SS or H:MM:SS. */
 export const TIMESTAMP_PATTERN = /^(?:\d{1,2}:)?\d{1,2}:\d{2}$/;
 
+/** The same grammar without anchors, for embedding in larger patterns. */
+export const TIMESTAMP_SOURCE = TIMESTAMP_PATTERN.source.slice(1, -1);
+
 /** A timestamp at the start of a line (MM:SS or H:MM:SS). */
 const LINE_TIMESTAMP = /^((?:\d{1,2}:)?\d{1,2}:\d{2})\b/;
 

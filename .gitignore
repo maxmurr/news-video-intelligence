@@ -66,6 +66,7 @@ skills-lock.json
 # agent files
 .agents
 .claude
+.cursor
 
 # opensrc - source code for packages
 opensrc/
@@ -73,3 +74,5 @@ opensrc/
 # eval results
 evals/results/
 /.swc
+
+.impeccable

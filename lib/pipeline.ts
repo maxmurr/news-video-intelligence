@@ -12,6 +12,8 @@ import path from 'node:path';
 import {
   FRAMES_DIR,
   HEADLINES_DIR,
+  parseCachedArtifact,
+  readArtifactJson,
   readCachedArtifact,
   STORIES_DIR,
   TRANSCRIPTS_DIR,
@@ -61,15 +63,15 @@ export function transcriptPath(filename: string): string {
   return path.join(TRANSCRIPTS_DIR, `${filename}.txt`);
 }
 
-function storiesPath(filename: string): string {
+export function storiesPath(filename: string): string {
   return path.join(STORIES_DIR, `${filename}.json`);
 }
 
-function headlinesPath(filename: string): string {
+export function headlinesPath(filename: string): string {
   return path.join(HEADLINES_DIR, `${filename}.json`);
 }
 
-function framesPath(filename: string): string {
+export function framesPath(filename: string): string {
   return path.join(FRAMES_DIR, `${filename}.json`);
 }
 
@@ -78,15 +80,6 @@ export async function readUploadedVideo(filename: string): Promise<Buffer> {
     return await readFile(uploadPath(filename));
   } catch {
     throw new PipelineError(`File not found: ${filename}`, 404);
-  }
-}
-
-/** Parses and validates a stored artifact, or returns null when it is malformed. */
-function parseCachedArtifact<T>(raw: string, schema: z.ZodType<T>): T | null {
-  try {
-    return schema.parse(JSON.parse(raw));
-  } catch {
-    return null;
   }
 }
 
@@ -100,9 +93,7 @@ async function readCachedJsonStage<T>(
   schema: z.ZodType<T>,
   filename: string,
 ): Promise<StageResult<{ filename: string } & T> | null> {
-  const cached = await readCachedArtifact(filePath);
-  if (cached === null) return null;
-  const parsed = parseCachedArtifact(cached, schema);
+  const parsed = await readArtifactJson(filePath, schema);
   if (parsed === null) return null;
   return { data: { filename, ...parsed }, cached: true };
 }
@@ -211,6 +202,20 @@ export async function detectStories(filename: string): Promise<StageResult<{ fil
   return writeJsonArtifact(file, { filename, ...result.output });
 }
 
+/**
+ * The numbered story-list block every prompt that references detected stories
+ * uses (headline generation, frame picking, chat grounding). One owner so the
+ * chat model and the pipeline stages always see the same shape.
+ */
+export function formatStoryList<T extends { startTime: string; endTime: string; summary: string }>(
+  items: T[],
+  heading: (item: T) => string,
+): string {
+  return items
+    .map((item, i) => `${i + 1}. [${item.startTime}-${item.endTime}] ${heading(item)}: ${item.summary}`)
+    .join('\n');
+}
+
 export async function generateHeadlines(
   filename: string,
 ): Promise<StageResult<{ filename: string; items: HeadlineItem[] }>> {
@@ -243,9 +248,7 @@ export async function generateHeadlines(
       .length(stories.length),
   });
 
-  const storyList = stories
-    .map((s, i) => `${i + 1}. [${s.startTime}-${s.endTime}] ${s.title}: ${s.summary}`)
-    .join('\n');
+  const storyList = formatStoryList(stories, s => s.title);
 
   const result = await generateText({
     model: MODELS.headlines,
@@ -299,9 +302,7 @@ async function pickRepresentativeFrames(filename: string, headlines: HeadlineIte
       .length(headlines.length),
   });
 
-  const storyList = headlines
-    .map((h, i) => `${i + 1}. [${h.startTime}-${h.endTime}] ${h.headline}: ${h.summary}`)
-    .join('\n');
+  const storyList = formatStoryList(headlines, h => h.headline);
 
   const result = await generateText({
     model: MODELS.frames,

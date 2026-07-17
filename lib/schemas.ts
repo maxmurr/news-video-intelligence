@@ -37,6 +37,7 @@ export const headlinesFileSchema = z.object({
 });
 
 export type HeadlineItem = z.infer<typeof headlineItemSchema>;
+export type HeadlinesFile = z.infer<typeof headlinesFileSchema>;
 
 export const frameItemSchema = headlineItemSchema.omit({ summary: true }).extend({
   frameTime: timestampField,
@@ -49,3 +50,4 @@ export const framesFileSchema = z.object({
 });
 
 export type FrameItem = z.infer<typeof frameItemSchema>;
+export type FramesFile = z.infer<typeof framesFileSchema>;

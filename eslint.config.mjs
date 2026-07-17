@@ -14,6 +14,13 @@ const eslintConfig = defineConfig([
     'next-env.d.ts',
     // Vendored shadcn/ui components — not linted.
     'components/ui/**',
+    // Vendored dependency sources and skill assets — not project code.
+    'opensrc/**',
+    '.agents/**',
+    '.cursor/**',
+    '.claude/skills/**',
+    'lib/compose-refs.ts',
+    'app/.well-known/workflow/**',
   ]),
 ]);
 
