@@ -20,6 +20,10 @@
 # production
 /build
 
+# uploaded videos
+/public/uploads/*
+!/public/uploads/.gitkeep
+
 # misc
 .DS_Store
 *.pem
@@ -46,3 +50,6 @@ skills-lock.json
 # agent files
 .agents
 .claude
+
+# opensrc - source code for packages
+opensrc/

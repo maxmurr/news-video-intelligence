@@ -6,13 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "format": "prettier --write .",
     "lint": "eslint",
+    "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "prepare": "husky"
   },
   "dependencies": {
+    "@ai-sdk/react": "^4.0.33",
     "@base-ui/react": "^1.6.0",
     "@shadcn/react": "^0.2.1",
+    "ai": "^7.0.30",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cnfast": "^0.0.8",
@@ -38,6 +42,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.0.8",
     "prettier": "^3.9.5",
+    "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
