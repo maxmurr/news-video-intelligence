@@ -1,5 +1,11 @@
 import { start } from 'workflow/api';
-import { isValidUploadFilename, UPLOADS_DIR, writeArtifactAtomic } from '@/lib/artifacts';
+import {
+  isValidUploadFilename,
+  streamUploadAtomic,
+  UPLOADS_DIR,
+  UploadInvalidError,
+  UploadTooLargeError,
+} from '@/lib/artifacts';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/broadcast-types';
 import { getBroadcast, listBroadcasts } from '@/lib/broadcasts';
 import { runVideoPipeline } from '@/workflows/video-pipeline';
@@ -31,33 +37,31 @@ function isMp4(bytes: Buffer): boolean {
 }
 
 export async function POST(req: Request) {
-  let form: FormData;
-  try {
-    form = await req.formData();
-  } catch {
-    return Response.json({ error: 'Expected multipart/form-data with a "file" field.' }, { status: 400 });
+  if (req.body === null) {
+    return Response.json({ error: 'Expected a video request body.' }, { status: 400 });
   }
 
-  const file = form.get('file');
-  if (!(file instanceof File)) {
-    return Response.json({ error: 'Missing "file" field.' }, { status: 400 });
-  }
-
-  if (file.size === 0) {
-    return Response.json({ error: 'File is empty.' }, { status: 400 });
-  }
-
-  if (file.size > MAX_UPLOAD_BYTES) {
+  const declaredLength = Number(req.headers.get('content-length'));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_UPLOAD_BYTES) {
     return Response.json({ error: `File too large. Max ${MAX_UPLOAD_MB}MB.` }, { status: 413 });
   }
 
-  const bytes = Buffer.from(await file.arrayBuffer());
-  if (!isMp4(bytes)) {
-    return Response.json({ error: 'Only MP4 video files are accepted.' }, { status: 415 });
-  }
-
   const filename = `${randomUUID()}.mp4`;
-  await writeArtifactAtomic(path.join(UPLOADS_DIR, filename), bytes);
+  let size: number;
+  try {
+    size = await streamUploadAtomic(path.join(UPLOADS_DIR, filename), req.body, {
+      maxBytes: MAX_UPLOAD_BYTES,
+      validateHead: isMp4,
+    });
+  } catch (error) {
+    if (error instanceof UploadTooLargeError) {
+      return Response.json({ error: `File too large. Max ${MAX_UPLOAD_MB}MB.` }, { status: 413 });
+    }
+    if (error instanceof UploadInvalidError) {
+      return Response.json({ error: 'Only MP4 video files are accepted.' }, { status: 415 });
+    }
+    throw error;
+  }
 
   // The upload is already persisted; a workflow-start failure must not turn a
   // successful upload into a 500 that hides the generated filename.
@@ -72,7 +76,7 @@ export async function POST(req: Request) {
     {
       filename,
       url: `/uploads/${filename}`,
-      size: file.size,
+      size,
       runId,
     },
     { status: 201 },

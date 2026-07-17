@@ -1,7 +1,9 @@
 import { createTextStreamResponse, streamText, toTextStream } from 'ai';
 import { readCachedArtifact, requestedFilename, writeArtifactAtomic } from '@/lib/artifacts';
-import { isValidTranscript, readUploadedVideo, transcribeRequest, transcriptPath } from '@/lib/pipeline';
+import { isValidTranscript, resolveUpload, transcribeRequest, transcriptPath } from '@/lib/pipeline';
 import { pipelineErrorResponse } from '@/lib/stage-response';
+import { normalizeTranscript } from '@/lib/timestamps';
+import { extractSpeechAudio } from '@/lib/video';
 
 export async function POST(req: Request) {
   const filename = await requestedFilename(req);
@@ -18,9 +20,9 @@ export async function POST(req: Request) {
     });
   }
 
-  let video: Buffer;
+  let audio: Buffer;
   try {
-    video = await readUploadedVideo(filename);
+    audio = await extractSpeechAudio(await resolveUpload(filename));
   } catch (error) {
     const mapped = pipelineErrorResponse(error);
     if (mapped) return mapped;
@@ -29,14 +31,14 @@ export async function POST(req: Request) {
 
   // Stream the transcript to the client as it is generated; the workflow's
   // buffered variant (transcribeVideo) shares the same request options.
-  const result = streamText(transcribeRequest(video));
+  const result = streamText(transcribeRequest(audio));
 
   // Persist once the stream completes. Only cache output that looks like a
   // transcript — a refusal or preamble cached here would poison every
   // downstream stage until someone manually deletes the file.
   void (async () => {
     try {
-      const trimmed = (await result.text).trim();
+      const trimmed = normalizeTranscript(await result.text).trim();
       if (!isValidTranscript(trimmed)) {
         console.error(
           `Transcript for ${filename} does not start with a timestamp; not caching. Got: ${trimmed.slice(0, 80)}`,

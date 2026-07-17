@@ -11,7 +11,7 @@ export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 export type BroadcastStages = Record<PipelineStage, boolean>;
 
 /** Upload size cap enforced by the server (413) and mirrored by the dropzone. */
-export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+export const MAX_UPLOAD_BYTES = 500 * 1024 * 1024;
 
 export const MAX_UPLOAD_MB = MAX_UPLOAD_BYTES / 1024 / 1024;
 

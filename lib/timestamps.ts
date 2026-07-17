@@ -31,6 +31,18 @@ export function lineTimestamp(line: string): string | null {
   return line.match(LINE_TIMESTAMP)?.[1] ?? null;
 }
 
+/**
+ * Strips (…) or […] wrappers the model sometimes puts around a line's leading
+ * timestamp, so the rest of the pipeline only ever sees the bare MM:SS grammar.
+ * A no-op on already-bare transcripts.
+ */
+export function normalizeTranscript(transcript: string): string {
+  return transcript
+    .split('\n')
+    .map(line => line.replace(/^(\s*)[([]\s*((?:\d{1,2}:)?\d{1,2}:\d{2})\s*[)\]]/, '$1$2'))
+    .join('\n');
+}
+
 /** All timestamps that start a line in a transcript, in order. */
 export function transcriptTimestamps(transcript: string): string[] {
   return [...transcript.matchAll(new RegExp(LINE_TIMESTAMP.source, 'gm'))].map(m => m[1]);

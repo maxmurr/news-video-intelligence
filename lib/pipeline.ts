@@ -7,7 +7,7 @@
  */
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import {
   FRAMES_DIR,
@@ -30,8 +30,14 @@ import {
   type HeadlineItem,
   type Story,
 } from './schemas';
-import { lineTimestamp, secondsToTimestamp, TIMESTAMP_PATTERN, timestampToSeconds } from './timestamps';
-import { extractFrame, videoDurationSeconds } from './video';
+import {
+  lineTimestamp,
+  normalizeTranscript,
+  secondsToTimestamp,
+  TIMESTAMP_PATTERN,
+  timestampToSeconds,
+} from './timestamps';
+import { createFramePreview, extractFrame, extractSpeechAudio, videoDurationSeconds } from './video';
 
 /**
  * A precondition or validation failure that a retry will not fix: a missing
@@ -75,12 +81,15 @@ export function framesPath(filename: string): string {
   return path.join(FRAMES_DIR, `${filename}.json`);
 }
 
-export async function readUploadedVideo(filename: string): Promise<Buffer> {
+/** Resolves an upload to its path, or throws a 404 PipelineError when absent. */
+export async function resolveUpload(filename: string): Promise<string> {
+  const videoPath = uploadPath(filename);
   try {
-    return await readFile(uploadPath(filename));
+    await stat(videoPath);
   } catch {
     throw new PipelineError(`File not found: ${filename}`, 404);
   }
+  return videoPath;
 }
 
 /**
@@ -130,7 +139,7 @@ async function readTranscript(filename: string): Promise<string> {
  * request (streamText) while the workflow awaits it (generateText via
  * transcribeVideo), so the prompt lives here, once.
  */
-export function transcribeRequest(video: Buffer) {
+export function transcribeRequest(audio: Buffer) {
   return {
     model: MODELS.transcribe,
     system:
@@ -142,9 +151,9 @@ export function transcribeRequest(video: Buffer) {
         content: [
           {
             type: 'text' as const,
-            text: 'Transcribe the spoken audio in this video. Include a timestamp (MM:SS) roughly every 10 seconds and preserve speaker turns.',
+            text: 'Transcribe the spoken audio. Start a new line with a plain MM:SS timestamp (for example 01:23 — no parentheses or brackets) roughly every 10 seconds, and preserve speaker turns.',
           },
-          { type: 'file' as const, mediaType: 'video/mp4', data: video },
+          { type: 'file' as const, mediaType: 'audio/mpeg', data: audio },
         ],
       },
     ],
@@ -165,11 +174,11 @@ export async function transcribeVideo(filename: string): Promise<StageResult<str
   const cached = await readCachedArtifact(transcriptFile);
   if (cached !== null) return { data: cached, cached: true };
 
-  const video = await readUploadedVideo(filename);
+  const audio = await extractSpeechAudio(await resolveUpload(filename));
 
-  const result = await generateText(transcribeRequest(video));
+  const result = await generateText(transcribeRequest(audio));
 
-  const text = result.text.trim();
+  const text = normalizeTranscript(result.text).trim();
   // Reject a refusal/preamble as a retryable failure instead of persisting garbage.
   if (!isValidTranscript(text)) {
     throw new Error(`Transcript for ${filename} does not start with a timestamp. Got: ${text.slice(0, 80)}`);
@@ -280,12 +289,12 @@ export async function generateHeadlines(
 const FRAME_BOUNDARY_MARGIN_SEC = 15;
 
 /**
- * Runs the frame-picking model call. The multi-MB video buffer is scoped to
- * this function so it becomes GC-eligible before the ffmpeg extraction loop,
- * which reads from disk and never touches the buffer.
+ * Runs the frame-picking model call against a small downscaled proxy of the
+ * video. The proxy buffer is scoped to this function so it becomes GC-eligible
+ * before the ffmpeg extraction loop, which reads the original from disk.
  */
 async function pickRepresentativeFrames(filename: string, headlines: HeadlineItem[]) {
-  const video = await readUploadedVideo(filename);
+  const preview = await createFramePreview(await resolveUpload(filename));
 
   // Length is pinned so each frame pick lines up 1:1 with the headlines.
   const framePicksSchema = z.object({
@@ -324,7 +333,7 @@ async function pickRepresentativeFrames(filename: string, headlines: HeadlineIte
         role: 'user',
         content: [
           { type: 'text', text: `Pick a representative frame for each of these stories:\n\n${storyList}` },
-          { type: 'file', mediaType: 'video/mp4', data: video },
+          { type: 'file', mediaType: 'video/mp4', data: preview },
         ],
       },
     ],

@@ -23,11 +23,15 @@ interface UploadResponse {
   error?: string;
 }
 
-/** XHR instead of fetch so the dropzone gets real upload progress events. */
+/**
+ * Raw body instead of multipart so the server streams straight to disk, and
+ * XHR instead of fetch so the dropzone gets real upload progress events.
+ */
 function uploadVideo(file: File, onProgress: (percent: number) => void): Promise<UploadResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/api/videos');
+    xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
     xhr.upload.addEventListener('progress', event => {
       if (event.lengthComputable) onProgress((event.loaded / event.total) * 100);
     });
@@ -41,9 +45,7 @@ function uploadVideo(file: File, onProgress: (percent: number) => void): Promise
       }
     });
     xhr.addEventListener('error', () => reject(new Error('Network error during upload.')));
-    const form = new FormData();
-    form.append('file', file);
-    xhr.send(form);
+    xhr.send(file);
   });
 }
 
