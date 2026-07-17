@@ -10,16 +10,12 @@ import {
   MediaPlayerLoading,
   MediaPlayerPlay,
   MediaPlayerSeek,
-  MediaPlayerSettings,
   MediaPlayerTime,
   MediaPlayerVideo,
   MediaPlayerVolume,
 } from '@/components/ui/media-player';
 
-/**
- * Desk-quiet player: scrub + play are primary. Speed and other secondary
- * controls live under Settings so the bar doesn’t compete with the story list.
- */
+/** Desk-quiet player: scrub + play are primary; volume and fullscreen only. */
 export function BroadcastPlayer({
   src,
   videoRef,
@@ -46,7 +42,6 @@ export function BroadcastPlayer({
           <MediaPlayerTime />
           <div className="flex-1" />
           <MediaPlayerVolume />
-          <MediaPlayerSettings />
           <MediaPlayerFullscreen />
         </div>
       </MediaPlayerControls>
