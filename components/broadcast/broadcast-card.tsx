@@ -59,7 +59,7 @@ export function BroadcastCard({
     <Link
       href={`/v/${broadcast.filename}`}
       aria-label={ariaLabel}
-      className="bg-card hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-ring/50 grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-2 transition-colors duration-150 ease-out focus-visible:ring-3 focus-visible:outline-none sm:grid-cols-[8rem_minmax(0,1fr)_7rem] sm:gap-4"
+      className="bg-card hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-ring/50 grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-2 transition-colors duration-150 ease-out focus-visible:ring-3 focus-visible:outline-none sm:grid-cols-[8rem_minmax(0,1fr)_10rem] sm:gap-4"
     >
       <div className="bg-muted relative col-start-1 aspect-video w-full overflow-hidden rounded-md">
         {broadcast.thumbnailUrl ? (
@@ -83,10 +83,7 @@ export function BroadcastCard({
           </time>
         </div>
       </div>
-      <span
-        className="text-muted-foreground col-start-3 max-w-[7rem] text-right text-xs text-pretty wrap-break-word sm:max-w-none"
-        aria-hidden
-      >
+      <span className="text-muted-foreground col-start-3 text-right text-xs whitespace-nowrap" aria-hidden>
         {statusLabel}
       </span>
     </Link>
