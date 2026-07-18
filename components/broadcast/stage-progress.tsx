@@ -140,7 +140,7 @@ export function StageProgress({
             </Button>
           )}
           <Button type="button" size="sm" variant="outline" nativeButton={false} render={<Link href="/" />}>
-            Back to library
+            Back to all broadcasts
           </Button>
         </div>
       )}

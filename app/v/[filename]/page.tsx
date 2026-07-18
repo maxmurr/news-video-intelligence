@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
@@ -5,6 +6,20 @@ import { BroadcastView } from '@/components/broadcast/broadcast-view';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getInjection } from '@/di/container';
 import { isValidUploadFilename } from '@/lib/artifacts';
+
+const NOT_FOUND_TITLE = 'Broadcast not found · Broadcast Desk';
+
+export async function generateMetadata({ params }: { params: Promise<{ filename: string }> }): Promise<Metadata> {
+  await connection();
+  const { filename } = await params;
+  if (!isValidUploadFilename(filename)) return { title: NOT_FOUND_TITLE };
+
+  const broadcast = await getInjection('IGetBroadcastDetailController')(filename);
+  if (broadcast === null) return { title: NOT_FOUND_TITLE };
+
+  const headline = broadcast.topHeadline?.trim();
+  return { title: headline ? `${headline} · Broadcast Desk` : 'Broadcast · Broadcast Desk' };
+}
 
 async function BroadcastLoader({ params }: { params: Promise<{ filename: string }> }) {
   await connection();
