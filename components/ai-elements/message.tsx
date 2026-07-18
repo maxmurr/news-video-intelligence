@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { ButtonGroup, ButtonGroupText } from '@/components/ui/button-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -64,21 +64,38 @@ export const MessageAction = ({
   label,
   variant = 'ghost',
   size = 'icon-sm',
+  className,
+  onClick,
+  disabled,
+  'aria-label': ariaLabel,
+  'aria-pressed': ariaPressed,
+  type = 'button',
   ...props
 }: MessageActionProps) => {
-  const button = (
-    <Button size={size} type="button" variant={variant} {...props}>
+  const content = (
+    <>
       {children}
       <span className="sr-only">{label || tooltip}</span>
-    </Button>
+    </>
   );
 
   if (tooltip) {
+    // TooltipTrigger already renders a <button>. Style it like Button instead of
+    // nesting/composing another button (which either nests DOM buttons or drops hover wiring).
     return (
       <TooltipProvider>
         <Tooltip>
-          <TooltipTrigger>{button}</TooltipTrigger>
-          <TooltipContent>
+          <TooltipTrigger
+            type={type}
+            disabled={disabled}
+            onClick={onClick}
+            aria-label={ariaLabel}
+            aria-pressed={ariaPressed}
+            className={cn(buttonVariants({ variant, size }), className)}
+          >
+            {content}
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
             <p>{tooltip}</p>
           </TooltipContent>
         </Tooltip>
@@ -86,7 +103,21 @@ export const MessageAction = ({
     );
   }
 
-  return button;
+  return (
+    <Button
+      size={size}
+      type={type}
+      variant={variant}
+      className={className}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
+      {...props}
+    >
+      {content}
+    </Button>
+  );
 };
 
 interface MessageBranchContextType {

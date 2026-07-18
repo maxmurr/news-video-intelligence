@@ -1,5 +1,6 @@
 import {
   convertToModelMessages,
+  createUIMessageStream,
   createUIMessageStreamResponse,
   smoothStream,
   streamText,
@@ -14,6 +15,13 @@ export type ParsedChatRequest = {
   messages: UIMessage[];
   /** Viewer's IANA timezone, already narrowed to a valid zone (UTC fallback). */
   timezone: string;
+};
+
+/** A broadcast (or other document) the desk assistant grounded its answer in. */
+export type ChatSource = {
+  sourceId: string;
+  url: string;
+  title: string;
 };
 
 /**
@@ -54,8 +62,14 @@ export function latestUserText(messages: UIMessage[]): string {
   return '';
 }
 
+const STREAM_ERROR = 'The assistant hit an error answering. Try asking again.';
+
 /** Streams a chat completion under the given system prompt as a UI message stream. */
-export async function streamChatResponse(system: string, messages: UIMessage[]): Promise<Response> {
+export async function streamChatResponse(
+  system: string,
+  messages: UIMessage[],
+  sources: ChatSource[] = [],
+): Promise<Response> {
   const result = streamText({
     model: MODELS.chat,
     system,
@@ -66,10 +80,25 @@ export async function streamChatResponse(system: string, messages: UIMessage[]):
     }),
   });
 
-  return createUIMessageStreamResponse({
-    stream: toUIMessageStream({
-      stream: result.stream,
-      onError: () => 'The assistant hit an error answering. Try asking again.',
-    }),
+  const stream = createUIMessageStream({
+    execute({ writer }) {
+      for (const source of sources) {
+        writer.write({
+          type: 'source-url',
+          sourceId: source.sourceId,
+          url: source.url,
+          title: source.title,
+        });
+      }
+      writer.merge(
+        toUIMessageStream({
+          stream: result.stream,
+          onError: () => STREAM_ERROR,
+        }),
+      );
+    },
+    onError: () => STREAM_ERROR,
   });
+
+  return createUIMessageStreamResponse({ stream });
 }

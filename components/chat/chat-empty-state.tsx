@@ -17,6 +17,11 @@ import {
   PromptInputTools,
 } from '@/components/ai-elements/prompt-input';
 import { Suggestion, Suggestions } from '@/components/ai-elements/suggestion';
+import {
+  AssistantMessageActions,
+  assistantMessageText,
+  countMessageSources,
+} from '@/components/chat/assistant-message-actions';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -297,23 +302,33 @@ export function ChatEmptyState({ broadcasts }: { broadcasts: BroadcastSummary[] 
       {hasMessages ? (
         <Conversation className="min-h-0 w-full flex-1 overflow-hidden">
           <ConversationContent className="gap-4 px-0 py-2">
-            {messages.map(message => (
-              <Message from={message.role} key={message.id}>
-                <MessageContent>
-                  {message.parts.map((part, i) =>
-                    part.type === 'text' ? (
-                      message.role === 'assistant' ? (
-                        <MessageResponse key={`${message.id}-${i}`}>{part.text}</MessageResponse>
-                      ) : (
-                        <span key={`${message.id}-${i}`} className="whitespace-pre-wrap">
-                          {part.text}
-                        </span>
-                      )
-                    ) : null,
-                  )}
-                </MessageContent>
-              </Message>
-            ))}
+            {messages.map((message, messageIndex) => {
+              const isLast = messageIndex === messages.length - 1;
+              const isStreamingAssistant = message.role === 'assistant' && busy && isLast;
+              const responseText = message.role === 'assistant' ? assistantMessageText(message.parts) : '';
+              const sourceCount = message.role === 'assistant' ? countMessageSources(message.parts) : 0;
+
+              return (
+                <Message from={message.role} key={message.id}>
+                  <MessageContent>
+                    {message.parts.map((part, i) =>
+                      part.type === 'text' ? (
+                        message.role === 'assistant' ? (
+                          <MessageResponse key={`${message.id}-${i}`}>{part.text}</MessageResponse>
+                        ) : (
+                          <span key={`${message.id}-${i}`} className="whitespace-pre-wrap">
+                            {part.text}
+                          </span>
+                        )
+                      ) : null,
+                    )}
+                  </MessageContent>
+                  {message.role === 'assistant' && !isStreamingAssistant && responseText ? (
+                    <AssistantMessageActions text={responseText} sourceCount={sourceCount} />
+                  ) : null}
+                </Message>
+              );
+            })}
             {status === 'submitted' ? <p className="shimmer text-muted-foreground text-xs">Thinking…</p> : null}
             {error ? (
               <p role="alert" className="text-destructive text-xs text-pretty">
