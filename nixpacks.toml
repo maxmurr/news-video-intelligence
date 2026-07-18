@@ -13,3 +13,4 @@ cmds = ['pnpm build']
 [variables]
 HUSKY = '0'
 NEXT_TELEMETRY_DISABLED = '1'
+NIXPACKS_NODE_VERSION = '22'
