@@ -1,6 +1,6 @@
 import { start } from 'workflow/api';
 import { getInjection } from '@/di/container';
-import { guardUploadStream, isValidUploadFilename, UploadInvalidError, UploadTooLargeError } from '@/lib/artifacts';
+import { guardUploadStream, isValidBroadcastId, UploadInvalidError, UploadTooLargeError } from '@/lib/artifacts';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/broadcast-types';
 import { unwrapFilesError, uploads } from '@/lib/files';
 import { NotFoundError } from '@/src/entities/errors/common';
@@ -8,19 +8,25 @@ import { runVideoPipeline } from '@/workflows/video-pipeline';
 import { randomUUID } from 'node:crypto';
 
 export async function GET(req: Request) {
-  const filename = new URL(req.url).searchParams.get('filename');
+  const params = new URL(req.url).searchParams;
+  const id = params.get('id');
 
-  if (filename === null) {
+  if (id === null) {
+    // Pre-id-migration clients polled by filename; failing loudly beats
+    // handing them the full list they would misparse as a detail.
+    if (params.has('filename')) {
+      return Response.json({ error: 'Broadcasts are looked up by id now.' }, { status: 400 });
+    }
     return Response.json({ broadcasts: await getInjection('IGetBroadcastSummariesController')() });
   }
 
-  if (!isValidUploadFilename(filename)) {
-    return Response.json({ error: 'Invalid filename. Expected a .mp4 file in uploads.' }, { status: 400 });
+  if (!isValidBroadcastId(id)) {
+    return Response.json({ error: 'Invalid broadcast id.' }, { status: 400 });
   }
 
-  const broadcast = await getInjection('IGetBroadcastDetailController')(filename);
+  const broadcast = await getInjection('IGetBroadcastDetailController')(id);
   if (broadcast === null) {
-    return Response.json({ error: `File not found: ${filename}` }, { status: 404 });
+    return Response.json({ error: `Broadcast not found: ${id}` }, { status: 404 });
   }
 
   return Response.json(broadcast);
@@ -58,8 +64,8 @@ export async function POST(req: Request) {
   }
 
   // The broadcast row must exist before the workflow starts — its first step
-  // resolves the row by filename. Without the row the upload is invisible to
-  // the DB-driven listing, so compensate by discarding the file.
+  // resolves the row by id. Without the row the upload is invisible to the
+  // DB-driven listing, so compensate by discarding the file.
   const url = filename;
   let broadcastId: string;
   try {
@@ -71,21 +77,21 @@ export async function POST(req: Request) {
   }
 
   // The upload is already persisted; a workflow-start failure must not turn a
-  // successful upload into a 500 that hides the generated filename. The run
+  // successful upload into a 500 that hides the created broadcast. The run
   // row makes the failure visible to the broadcast page instead.
   let runId: string | null = null;
   try {
-    ({ runId } = await start(runVideoPipeline, [filename]));
+    ({ runId } = await start(runVideoPipeline, [broadcastId]));
   } catch (error) {
-    console.error(`Failed to start pipeline for ${filename}:`, error);
+    console.error(`Failed to start pipeline for ${broadcastId}:`, error);
   }
   try {
     await getInjection('ISaveRunController')({ broadcastId, runId });
   } catch (error) {
-    console.error(`Failed to save run for ${filename}:`, error);
+    console.error(`Failed to save run for ${broadcastId}:`, error);
   }
 
-  return Response.json({ filename, url, size, runId }, { status: 201 });
+  return Response.json({ id: broadcastId, runId }, { status: 201 });
 }
 
 /**
@@ -93,21 +99,20 @@ export async function POST(req: Request) {
  * cascade in Postgres) plus the uploaded video and extracted frames in the bucket.
  */
 export async function DELETE(req: Request) {
-  const filename = new URL(req.url).searchParams.get('filename');
+  const id = new URL(req.url).searchParams.get('id');
 
-  if (!isValidUploadFilename(filename)) {
-    return Response.json({ error: 'Invalid filename. Expected a .mp4 file in uploads.' }, { status: 400 });
+  if (!isValidBroadcastId(id)) {
+    return Response.json({ error: 'Invalid broadcast id.' }, { status: 400 });
   }
 
   try {
-    const broadcast = await getInjection('IGetBroadcastByFilenameController')(filename);
-    await getInjection('IDeleteBroadcastController')(broadcast.id);
+    await getInjection('IDeleteBroadcastController')(id);
   } catch (error) {
     if (error instanceof NotFoundError) {
-      return Response.json({ error: `File not found: ${filename}` }, { status: 404 });
+      return Response.json({ error: `Broadcast not found: ${id}` }, { status: 404 });
     }
     throw error;
   }
 
-  return Response.json({ filename });
+  return Response.json({ id });
 }

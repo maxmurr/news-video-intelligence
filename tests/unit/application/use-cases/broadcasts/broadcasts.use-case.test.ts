@@ -29,6 +29,13 @@ it('looks a broadcast up by filename, returning undefined when absent', async ()
   await expect(getBroadcastByFilename('nope.mp4')).resolves.toBeUndefined();
 });
 
+it('looks a broadcast up by id, returning undefined when absent', async () => {
+  const getBroadcastById = getInjection('IGetBroadcastByIdUseCase');
+  const created = await createBroadcast({ filename, url: `/uploads/${filename}`, size: 1 });
+  await expect(getBroadcastById(created.id)).resolves.toMatchObject({ filename });
+  await expect(getBroadcastById('missing-id-123')).resolves.toBeUndefined();
+});
+
 it('lists the created broadcast', async () => {
   const created = await createBroadcast({ filename, url: `/uploads/${filename}`, size: 1 });
   const all = await broadcastsRepository.getBroadcasts();

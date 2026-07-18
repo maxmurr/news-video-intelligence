@@ -56,9 +56,9 @@ export const getBroadcastDetailUseCase =
     framesRepository: IFramesRepository,
     runStatusService: IRunStatusService,
   ) =>
-  (filename: string): Promise<BroadcastDetailResult | null> => {
+  (broadcastId: string): Promise<BroadcastDetailResult | null> => {
     return instrumentationService.startSpan({ name: 'getBroadcastDetail Use Case', op: 'function' }, async () => {
-      const broadcast = await broadcastsRepository.getBroadcastByFilename(filename);
+      const broadcast = await broadcastsRepository.getBroadcast(broadcastId);
       if (!broadcast) return null;
 
       const [analysis, run] = await Promise.all([

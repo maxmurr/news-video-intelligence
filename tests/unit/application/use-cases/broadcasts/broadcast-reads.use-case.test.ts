@@ -9,17 +9,18 @@ const getSummaries = getInjection('IGetBroadcastSummariesUseCase');
 const getChatContext = getInjection('IGetChatContextUseCase');
 
 let filename: string;
+let broadcastId: string;
 
 beforeEach(async () => {
   filename = `${crypto.randomUUID()}.mp4`;
-  await createBroadcast({ filename, url: `/uploads/${filename}`, size: 1 });
+  ({ id: broadcastId } = await createBroadcast({ filename, url: `/uploads/${filename}`, size: 1 }));
 });
 
 async function runFullPipeline() {
-  await getInjection('ITranscribeBroadcastUseCase')(filename);
-  await getInjection('IDetectStoriesUseCase')(filename);
-  await getInjection('IGenerateHeadlinesUseCase')(filename);
-  await getInjection('IExtractFramesUseCase')(filename);
+  await getInjection('ITranscribeBroadcastUseCase')(broadcastId);
+  await getInjection('IDetectStoriesUseCase')(broadcastId);
+  await getInjection('IGenerateHeadlinesUseCase')(broadcastId);
+  await getInjection('IExtractFramesUseCase')(broadcastId);
 }
 
 it('returns null detail for an unknown broadcast', async () => {
@@ -27,7 +28,7 @@ it('returns null detail for an unknown broadcast', async () => {
 });
 
 it('reports untouched stages and an unknown run before the pipeline starts', async () => {
-  const detail = await getDetail(filename);
+  const detail = await getDetail(broadcastId);
 
   expect(detail?.stages).toEqual({ transcript: false, stories: false, headlines: false, frames: false });
   expect(detail?.transcript).toBeNull();
@@ -35,19 +36,16 @@ it('reports untouched stages and an unknown run before the pipeline starts', asy
 });
 
 it('resolves a live run through the run status service while incomplete', async () => {
-  await getInjection('ISaveRunUseCase')({
-    broadcastId: (await getInjection('IGetBroadcastByFilenameUseCase')(filename))!.id,
-    runId: 'run_1',
-  });
+  await getInjection('ISaveRunUseCase')({ broadcastId, runId: 'run_1' });
 
-  const detail = await getDetail(filename);
+  const detail = await getDetail(broadcastId);
   expect(detail?.run.status).toBe('running');
 });
 
 it('reports a completed pipeline without querying the engine', async () => {
   await runFullPipeline();
 
-  const detail = await getDetail(filename);
+  const detail = await getDetail(broadcastId);
   expect(detail?.stages).toEqual({ transcript: true, stories: true, headlines: true, frames: true });
   expect(detail?.transcript).toMatch(/^00:00 /);
   expect(detail?.run.status).toBe('completed');
@@ -69,13 +67,13 @@ it('throws NotFoundError for chat context on an unknown broadcast', async () => 
 });
 
 it('returns a null transcript in chat context before transcription, then the text', async () => {
-  const before = await getChatContext(filename);
+  const before = await getChatContext(broadcastId);
   expect(before.transcript).toBeNull();
   expect(before.headlines).toEqual([]);
 
   await runFullPipeline();
 
-  const after = await getChatContext(filename);
+  const after = await getChatContext(broadcastId);
   expect(after.transcript?.text).toMatch(/^00:00 /);
   expect(after.headlines).toHaveLength(2);
 });

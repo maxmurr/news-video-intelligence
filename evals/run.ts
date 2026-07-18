@@ -34,23 +34,29 @@ const RESULTS_DIR = path.join(process.cwd(), 'evals', 'results');
 const STORY_GAP_SLACK_SEC = 15;
 
 /**
- * Stages resolve their broadcast row by filename and never create it, so a
- * fixture video dropped straight into public/uploads needs its row minted
- * before the first stage runs.
+ * Stages resolve their broadcast row by id and never create it, so a fixture
+ * video dropped straight into public/uploads needs its row minted before the
+ * first stage runs. Returns the broadcast id the stage controllers expect;
+ * the harness stays filename-driven only at the filesystem level.
  */
-async function ensureBroadcast(filename: string): Promise<void> {
+async function ensureBroadcast(filename: string): Promise<string> {
   try {
-    await getInjection('IGetBroadcastByFilenameController')(filename);
+    const { id } = await getInjection('IGetBroadcastByFilenameController')(filename);
+    return id;
   } catch (error) {
     if (!(error instanceof NotFoundError)) throw error;
     const { size } = await stat(path.join(PUBLIC_DIR, 'uploads', filename));
-    await getInjection('ICreateBroadcastController')({ filename, url: `/uploads/${filename}`, size });
+    const { id } = await getInjection('ICreateBroadcastController')({ filename, url: `/uploads/${filename}`, size });
+    return id;
   }
 }
 
-async function evalTranscribe(filename: string): Promise<{ result: StageResult; transcript: string }> {
+async function evalTranscribe(
+  broadcastId: string,
+  filename: string,
+): Promise<{ result: StageResult; transcript: string }> {
   const started = Date.now();
-  const { text: transcript } = await getInjection('ITranscribeBroadcastController')(filename);
+  const { text: transcript } = await getInjection('ITranscribeBroadcastController')(broadcastId);
   const videoSec = await videoDurationSeconds(path.join(PUBLIC_DIR, 'uploads', filename));
 
   const timestamps = transcriptTimestamps(transcript);
@@ -94,9 +100,12 @@ async function evalTranscribe(filename: string): Promise<{ result: StageResult; 
   return { result: finalize('transcribe', checks, judges, started), transcript };
 }
 
-async function evalStories(filename: string, transcript: string): Promise<{ result: StageResult; stories: Story[] }> {
+async function evalStories(
+  broadcastId: string,
+  transcript: string,
+): Promise<{ result: StageResult; stories: Story[] }> {
   const started = Date.now();
-  const { stories } = await getInjection('IDetectStoriesController')(filename);
+  const { stories } = await getInjection('IDetectStoriesController')(broadcastId);
 
   const timestamps = transcriptTimestamps(transcript);
   const tsSet = new Set(timestamps);
@@ -134,12 +143,12 @@ async function evalStories(filename: string, transcript: string): Promise<{ resu
 }
 
 async function evalHeadlines(
-  filename: string,
+  broadcastId: string,
   transcript: string,
   stories: Story[],
 ): Promise<{ result: StageResult; headlines: HeadlineItem[] }> {
   const started = Date.now();
-  const { items } = await getInjection('IGenerateHeadlinesController')(filename);
+  const { items } = await getInjection('IGenerateHeadlinesController')(broadcastId);
 
   const aligned = items.every((h, i) => h.startTime === stories[i]?.startTime && h.endTime === stories[i]?.endTime);
   const headlineLengths = items.map(h => h.headline.split(/\s+/).length);
@@ -172,9 +181,9 @@ async function evalHeadlines(
   return { result: finalize('headlines', checks, judges, started), headlines: items };
 }
 
-async function evalFrames(filename: string, transcript: string, headlines: HeadlineItem[]): Promise<StageResult> {
+async function evalFrames(broadcastId: string, transcript: string, headlines: HeadlineItem[]): Promise<StageResult> {
   const started = Date.now();
-  const { items } = await getInjection('IExtractFramesController')(filename);
+  const { items } = await getInjection('IExtractFramesController')(broadcastId);
 
   const inSpan = items.every(f => {
     const t = timestampToSeconds(f.frameTime);
@@ -270,11 +279,11 @@ async function main() {
   // buffered per video so interleaved runs still print readably.
   const perVideo = await Promise.all(
     videos.map(async video => {
-      await ensureBroadcast(video);
-      const transcribe = await evalTranscribe(video);
-      const stories = await evalStories(video, transcribe.transcript);
-      const headlines = await evalHeadlines(video, transcribe.transcript, stories.stories);
-      const frames = await evalFrames(video, transcribe.transcript, headlines.headlines);
+      const broadcastId = await ensureBroadcast(video);
+      const transcribe = await evalTranscribe(broadcastId, video);
+      const stories = await evalStories(broadcastId, transcribe.transcript);
+      const headlines = await evalHeadlines(broadcastId, transcribe.transcript, stories.stories);
+      const frames = await evalFrames(broadcastId, transcribe.transcript, headlines.headlines);
       return [video, [transcribe.result, stories.result, headlines.result, frames]] as const;
     }),
   );

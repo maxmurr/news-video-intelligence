@@ -8,7 +8,7 @@ import type { IHeadlineWriterService } from '@/src/application/services/headline
 import type { IInstrumentationService } from '@/src/application/services/instrumentation.service.interface';
 import { InputParseError, NotFoundError } from '@/src/entities/errors/common';
 import { insertHeadlineSchema, type Headline } from '@/src/entities/models/headline';
-import { requireBroadcastByFilename, type StageResult } from './shared';
+import { requireBroadcastById, type StageResult } from './shared';
 
 export type IGenerateHeadlinesUseCase = ReturnType<typeof generateHeadlinesUseCase>;
 
@@ -21,9 +21,9 @@ export const generateHeadlinesUseCase =
     headlinesRepository: IHeadlinesRepository,
     headlineWriterService: IHeadlineWriterService,
   ) =>
-  (filename: string): Promise<StageResult<Headline[]>> => {
+  (broadcastId: string): Promise<StageResult<Headline[]>> => {
     return instrumentationService.startSpan({ name: 'generateHeadlines Use Case', op: 'function' }, async () => {
-      const broadcast = await requireBroadcastByFilename(broadcastsRepository, filename);
+      const broadcast = await requireBroadcastById(broadcastsRepository, broadcastId);
 
       const existing = await headlinesRepository.getHeadlines(broadcast.id);
       if (existing.length > 0) return { data: existing, cached: true };
@@ -33,10 +33,10 @@ export const generateHeadlinesUseCase =
         storiesRepository.getStories(broadcast.id),
       ]);
       if (!transcript) {
-        throw new NotFoundError(`No transcript found for ${filename}. Run the transcribe stage first.`);
+        throw new NotFoundError(`No transcript found for ${broadcast.filename}. Run the transcribe stage first.`);
       }
       if (stories.length === 0) {
-        throw new NotFoundError(`No stories found for ${filename}. Run the stories stage first.`);
+        throw new NotFoundError(`No stories found for ${broadcast.filename}. Run the stories stage first.`);
       }
 
       const copy = await headlineWriterService.writeHeadlines(stories, transcript.text);

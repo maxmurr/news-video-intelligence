@@ -24,10 +24,10 @@ export type IGenerateHeadlinesController = ReturnType<typeof generateHeadlinesCo
 
 export const generateHeadlinesController =
   (instrumentationService: IInstrumentationService, generateHeadlinesUseCase: IGenerateHeadlinesUseCase) =>
-  (filename: unknown): Promise<ReturnType<typeof presenter>> => {
+  (broadcastId: unknown): Promise<ReturnType<typeof presenter>> => {
     return instrumentationService.startSpan({ name: 'generateHeadlines Controller' }, async () => {
-      const { data, error: inputParseError } = inputSchema.safeParse(filename);
-      if (inputParseError) throw new InputParseError('Invalid filename', { cause: inputParseError });
+      const { data, error: inputParseError } = inputSchema.safeParse(broadcastId);
+      if (inputParseError) throw new InputParseError('Invalid broadcast id', { cause: inputParseError });
 
       return presenter(await generateHeadlinesUseCase(data), instrumentationService);
     });

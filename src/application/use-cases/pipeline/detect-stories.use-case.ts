@@ -9,7 +9,7 @@ import type { IMediaProcessorService } from '@/src/application/services/media-pr
 import type { IStorySegmentationService } from '@/src/application/services/story-segmentation.service.interface';
 import { InputParseError, NotFoundError } from '@/src/entities/errors/common';
 import { insertStorySchema, type Story, type StoryInsert } from '@/src/entities/models/story';
-import { requireBroadcastByFilename, type StageResult } from './shared';
+import { requireBroadcastById, type StageResult } from './shared';
 
 // Transcript timestamps can drift past the real video length (the ASR model
 // hallucinates trailing lines), so cap every story span at the actual
@@ -40,21 +40,21 @@ export const detectStoriesUseCase =
     storySegmentationService: IStorySegmentationService,
     mediaProcessorService: IMediaProcessorService,
   ) =>
-  (filename: string): Promise<StageResult<Story[]>> => {
+  (broadcastId: string): Promise<StageResult<Story[]>> => {
     return instrumentationService.startSpan({ name: 'detectStories Use Case', op: 'function' }, async () => {
-      const broadcast = await requireBroadcastByFilename(broadcastsRepository, filename);
+      const broadcast = await requireBroadcastById(broadcastsRepository, broadcastId);
 
       const existing = await storiesRepository.getStories(broadcast.id);
       if (existing.length > 0) return { data: existing, cached: true };
 
       const transcript = await transcriptsRepository.getTranscript(broadcast.id);
       if (!transcript) {
-        throw new NotFoundError(`No transcript found for ${filename}. Run the transcribe stage first.`);
+        throw new NotFoundError(`No transcript found for ${broadcast.filename}. Run the transcribe stage first.`);
       }
 
       const [stories, durationSeconds] = await Promise.all([
         storySegmentationService.segmentTranscript(transcript.text),
-        mediaProcessorService.durationSeconds(filename),
+        mediaProcessorService.durationSeconds(broadcast.filename),
       ]);
 
       // Generated data failing entity validation is deterministic — the same

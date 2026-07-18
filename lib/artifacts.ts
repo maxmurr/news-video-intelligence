@@ -1,35 +1,36 @@
 /**
- * Shared contract for uploaded broadcast videos: what an acceptable upload
- * filename looks like and the upload guard protocol. The binaries themselves
- * live in the object bucket (see `lib/files.ts`); `PUBLIC_DIR` remains only for
- * the local-fixture eval harness.
+ * Shared contract for uploaded broadcast videos: what an acceptable broadcast
+ * id looks like and the upload guard protocol. The binaries themselves live in
+ * the object bucket (see `lib/files.ts`); `PUBLIC_DIR` remains only for the
+ * local-fixture eval harness.
  */
 import path from 'node:path';
 
 export const PUBLIC_DIR = path.join(process.cwd(), 'public');
 
 /**
- * Security boundary for every route that touches public/uploads: word
- * characters and dashes only, so no dots, slashes, or traversal segments.
+ * Public broadcast identifier: the nanoid primary key. No dot, so legacy
+ * `{uuid}.mp4` URLs and params fail validation and 404 naturally. Bounded
+ * length rather than exactly nanoid's 21 to avoid coupling to its default.
  */
-const FILENAME_PATTERN = /^[\w-]+\.mp4$/;
+const BROADCAST_ID_PATTERN = /^[\w-]{10,40}$/;
 
-export function isValidUploadFilename(value: unknown): value is string {
-  return typeof value === 'string' && FILENAME_PATTERN.test(value);
+export function isValidBroadcastId(value: unknown): value is string {
+  return typeof value === 'string' && BROADCAST_ID_PATTERN.test(value);
 }
 
 /**
- * Parses the request body and returns a validated upload filename, or null
- * when the body is malformed JSON or the filename fails validation.
+ * Parses the request body and returns a validated broadcast id, or null when
+ * the body is malformed JSON or the id fails validation.
  */
-export async function requestedFilename(req: Request): Promise<string | null> {
-  let filename: unknown;
+export async function requestedBroadcastId(req: Request): Promise<string | null> {
+  let id: unknown;
   try {
-    ({ filename } = (await req.json()) as { filename?: unknown });
+    ({ id } = (await req.json()) as { id?: unknown });
   } catch {
     return null;
   }
-  return isValidUploadFilename(filename) ? filename : null;
+  return isValidBroadcastId(id) ? id : null;
 }
 
 /** Upload exceeded the byte cap mid-stream; nothing was persisted. */

@@ -51,7 +51,7 @@ export function NotFoundScreen({
           </h2>
           <ul className="flex flex-col gap-2">
             {recent.map(broadcast => (
-              <li key={broadcast.filename}>
+              <li key={broadcast.id}>
                 <BroadcastCard broadcast={broadcast} />
               </li>
             ))}

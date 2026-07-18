@@ -33,13 +33,15 @@ function groupBroadcastsByDay(
 /**
  * Rows display only the first UUID segment, so search matches only that
  * visible id (plus headline) — a hit on the hidden tail would look wrong.
+ * The full broadcast id also matches by prefix, so a pasted share id finds
+ * its row.
  */
 function matchesQuery(broadcast: BroadcastSummary, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   const headline = broadcast.topHeadline?.toLowerCase() ?? '';
   const visibleId = broadcast.filename.split('-')[0]?.toLowerCase() ?? '';
-  return headline.includes(q) || visibleId.includes(q);
+  return headline.includes(q) || visibleId.includes(q) || broadcast.id.toLowerCase().startsWith(q);
 }
 
 function broadcastNoun(count: number): string {
@@ -132,7 +134,7 @@ export function BroadcastLibrary({ broadcasts }: { broadcasts: BroadcastSummary[
               <h3 className="text-muted-foreground text-xs font-medium">{formatDayHeading(group.day)}</h3>
               <ul className="flex flex-col gap-2">
                 {group.items.map(broadcast => (
-                  <li key={broadcast.filename}>
+                  <li key={broadcast.id}>
                     <BroadcastCard broadcast={broadcast} timeOnly />
                   </li>
                 ))}

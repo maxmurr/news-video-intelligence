@@ -37,8 +37,8 @@ export async function shareOrCopyUrl({
 
 /** Canonical broadcast page URL (no tab/query noise). */
 export function broadcastShareUrl(
-  filename: string,
+  fileId: string,
   origin = typeof window !== 'undefined' ? window.location.origin : '',
 ): string {
-  return `${origin}/v/${encodeURIComponent(filename)}`;
+  return `${origin}/v/${encodeURIComponent(fileId)}`;
 }

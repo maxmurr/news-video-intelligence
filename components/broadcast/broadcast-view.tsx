@@ -89,7 +89,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
 
   const refreshBroadcast = React.useCallback(async () => {
     try {
-      const res = await fetch(`/api/videos?filename=${encodeURIComponent(broadcast.filename)}`);
+      const res = await fetch(`/api/videos?id=${encodeURIComponent(broadcast.id)}`);
       if (!res.ok) return false;
       const next = (await res.json()) as BroadcastDetail;
       const nextKey = stagesKey(next.stages);
@@ -112,7 +112,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
       else if (now - lastProgressAtRef.current >= stallThreshold(stagesRef.current)) setStalled(true);
       return false;
     }
-  }, [broadcast.filename]);
+  }, [broadcast.id]);
 
   const retryAnalysis = React.useCallback(async () => {
     setRetrying(true);
@@ -120,7 +120,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
       const res = await fetch('/api/pipeline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: broadcast.filename }),
+        body: JSON.stringify({ id: broadcast.id }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -139,7 +139,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
     } finally {
       setRetrying(false);
     }
-  }, [broadcast.filename, refreshBroadcast]);
+  }, [broadcast.id, refreshBroadcast]);
 
   React.useEffect(() => {
     if (!processing) return;
@@ -199,7 +199,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
       attached?.removeEventListener('timeupdate', syncActiveTime);
       attached?.removeEventListener('seeked', syncActiveTime);
     };
-  }, [broadcast.filename, broadcast.url]);
+  }, [broadcast.id, broadcast.url]);
 
   const seekTo = React.useCallback(
     (seconds: number, options?: SeekOptions) => {
@@ -253,7 +253,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
     try {
       const result = await shareOrCopyUrl({
         title,
-        url: broadcastShareUrl(broadcast.filename),
+        url: broadcastShareUrl(broadcast.id),
         text: `Watch: ${title}`,
       });
       if (result === 'copied') toast.success('Link copied', { description: 'Share it anywhere.' });
@@ -261,7 +261,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
     } catch {
       toast.error('Could not share', { description: 'Copy the URL from the address bar instead.' });
     }
-  }, [broadcast.filename, title]);
+  }, [broadcast.id, title]);
 
   return (
     <div
@@ -455,6 +455,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
             className={cn('min-h-0 flex-1 flex-col', askOpen ? 'flex' : 'hidden', 'lg:flex')}
           >
             <ChatPanel
+              fileId={broadcast.id}
               filename={broadcast.filename}
               stories={broadcast.stories}
               transcriptReady={transcriptReady}

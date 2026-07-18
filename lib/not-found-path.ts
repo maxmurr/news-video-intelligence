@@ -1,5 +1,5 @@
-/** Extract a broadcast filename from a `/v/...` pathname, if present. */
-export function broadcastFilenameFromPathname(pathname: string): string | null {
+/** Extract the requested broadcast segment from a `/v/...` pathname, if present. */
+export function broadcastPathSegmentFromPathname(pathname: string): string | null {
   const match = pathname.match(/^\/v\/([^/?#]+)/);
   if (!match?.[1]) return null;
 

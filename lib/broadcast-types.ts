@@ -21,6 +21,8 @@ export function isPipelineComplete(stages: BroadcastStages): boolean {
 }
 
 export interface BroadcastSummary {
+  id: string;
+  /** Internal storage key; kept on the wire for display (short id, exports). */
   filename: string;
   url: string;
   uploadedAt: string;

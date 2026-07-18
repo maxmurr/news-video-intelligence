@@ -1,6 +1,21 @@
 import type { BroadcastSummary, StoryCard } from '@/lib/broadcast-types';
 import { uploads } from '@/lib/files';
 import type { BroadcastAnalysis } from '@/src/application/use-cases/broadcasts/broadcast-analysis';
+import type { IInstrumentationService } from '@/src/application/services/instrumentation.service.interface';
+import type { Broadcast } from '@/src/entities/models/broadcast';
+
+/** Raw broadcast row with the storage key presigned into a servable URL. */
+export function presentBroadcastRow(broadcast: Broadcast, instrumentationService: IInstrumentationService) {
+  return instrumentationService.startSpan({ name: 'presentBroadcastRow', op: 'serialize' }, async () => ({
+    id: broadcast.id,
+    filename: broadcast.filename,
+    url: await uploads.url(broadcast.url),
+    size: broadcast.size,
+    uploadedAt: broadcast.uploadedAt.toISOString(),
+    createdAt: broadcast.createdAt.toISOString(),
+    updatedAt: broadcast.updatedAt.toISOString(),
+  }));
+}
 
 /**
  * One story of the interactive newspaper: headline + frame merged by index.
@@ -27,6 +42,7 @@ export async function presentSummary(analysis: BroadcastAnalysis): Promise<Broad
   const { broadcast, stages, headlines, frames } = analysis;
   const thumbnailKey = frames[0]?.frameUrl ?? null;
   return {
+    id: broadcast.id,
     filename: broadcast.filename,
     url: await uploads.url(broadcast.url),
     uploadedAt: broadcast.uploadedAt.toISOString(),

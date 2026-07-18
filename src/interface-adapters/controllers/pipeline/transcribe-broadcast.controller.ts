@@ -19,10 +19,10 @@ export type ITranscribeBroadcastController = ReturnType<typeof transcribeBroadca
 
 export const transcribeBroadcastController =
   (instrumentationService: IInstrumentationService, transcribeBroadcastUseCase: ITranscribeBroadcastUseCase) =>
-  (filename: unknown): Promise<ReturnType<typeof presenter>> => {
+  (broadcastId: unknown): Promise<ReturnType<typeof presenter>> => {
     return instrumentationService.startSpan({ name: 'transcribeBroadcast Controller' }, async () => {
-      const { data, error: inputParseError } = inputSchema.safeParse(filename);
-      if (inputParseError) throw new InputParseError('Invalid filename', { cause: inputParseError });
+      const { data, error: inputParseError } = inputSchema.safeParse(broadcastId);
+      if (inputParseError) throw new InputParseError('Invalid broadcast id', { cause: inputParseError });
 
       return presenter(await transcribeBroadcastUseCase(data), instrumentationService);
     });

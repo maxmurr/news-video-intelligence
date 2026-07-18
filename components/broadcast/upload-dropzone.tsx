@@ -19,7 +19,7 @@ import {
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/broadcast-types';
 
 interface UploadResponse {
-  filename?: string;
+  id?: string;
   /** Workflow run id; null when the upload landed but analysis failed to start. */
   runId?: string | null;
   error?: string;
@@ -71,8 +71,8 @@ export function UploadDropzone() {
       const file = accepted[0];
       if (!file) return;
       try {
-        const { filename, runId } = await uploadVideo(file, percent => onProgress(file, percent));
-        if (!filename) throw new Error('Upload succeeded but no filename was returned.');
+        const { id, runId } = await uploadVideo(file, percent => onProgress(file, percent));
+        if (!id) throw new Error('Upload succeeded but no broadcast id was returned.');
         onSuccess(file);
         if (runId === null) {
           toast.warning('Uploaded, but analysis didn’t start', {
@@ -83,7 +83,7 @@ export function UploadDropzone() {
             description: 'Extracting transcript and stories. Progress opens next.',
           });
         }
-        router.push(`/v/${filename}`);
+        router.push(`/v/${id}`);
       } catch (error) {
         const err = error instanceof Error ? error : new Error('Upload failed.');
         onError(file, err);

@@ -31,10 +31,10 @@ export type IGetBroadcastDetailController = ReturnType<typeof getBroadcastDetail
 /** Full detail for one broadcast, or null when it doesn't exist. */
 export const getBroadcastDetailController =
   (instrumentationService: IInstrumentationService, getBroadcastDetailUseCase: IGetBroadcastDetailUseCase) =>
-  (filename: unknown): Promise<BroadcastDetail | null> => {
+  (broadcastId: unknown): Promise<BroadcastDetail | null> => {
     return instrumentationService.startSpan({ name: 'getBroadcastDetail Controller' }, async () => {
-      const { data, error: inputParseError } = inputSchema.safeParse(filename);
-      if (inputParseError) throw new InputParseError('Invalid filename', { cause: inputParseError });
+      const { data, error: inputParseError } = inputSchema.safeParse(broadcastId);
+      if (inputParseError) throw new InputParseError('Invalid broadcast id', { cause: inputParseError });
 
       const detail = await getBroadcastDetailUseCase(data);
       return detail === null ? null : presenter(detail, instrumentationService);

@@ -4,6 +4,7 @@ import { DI_SYMBOLS } from '@/di/types';
 import { createBroadcastUseCase } from '@/src/application/use-cases/broadcasts/create-broadcast.use-case';
 import { deleteBroadcastUseCase } from '@/src/application/use-cases/broadcasts/delete-broadcast.use-case';
 import { getBroadcastByFilenameUseCase } from '@/src/application/use-cases/broadcasts/get-broadcast-by-filename.use-case';
+import { getBroadcastByIdUseCase } from '@/src/application/use-cases/broadcasts/get-broadcast-by-id.use-case';
 import { getBroadcastDetailUseCase } from '@/src/application/use-cases/broadcasts/get-broadcast-detail.use-case';
 import { getBroadcastSummariesUseCase } from '@/src/application/use-cases/broadcasts/get-broadcast-summaries.use-case';
 import { getChatContextUseCase } from '@/src/application/use-cases/broadcasts/get-chat-context.use-case';
@@ -12,6 +13,7 @@ import { MockBroadcastsRepository } from '@/src/infrastructure/repositories/broa
 import { createBroadcastController } from '@/src/interface-adapters/controllers/broadcasts/create-broadcast.controller';
 import { deleteBroadcastController } from '@/src/interface-adapters/controllers/broadcasts/delete-broadcast.controller';
 import { getBroadcastByFilenameController } from '@/src/interface-adapters/controllers/broadcasts/get-broadcast-by-filename.controller';
+import { getBroadcastByIdController } from '@/src/interface-adapters/controllers/broadcasts/get-broadcast-by-id.controller';
 import { getBroadcastDetailController } from '@/src/interface-adapters/controllers/broadcasts/get-broadcast-detail.controller';
 import { getBroadcastSummariesController } from '@/src/interface-adapters/controllers/broadcasts/get-broadcast-summaries.controller';
 import { getChatContextController } from '@/src/interface-adapters/controllers/broadcasts/get-chat-context.controller';
@@ -36,6 +38,12 @@ export function createBroadcastsModule() {
   broadcastsModule
     .bind(DI_SYMBOLS.IGetBroadcastByFilenameUseCase)
     .toHigherOrderFunction(getBroadcastByFilenameUseCase, [
+      DI_SYMBOLS.IInstrumentationService,
+      DI_SYMBOLS.IBroadcastsRepository,
+    ]);
+  broadcastsModule
+    .bind(DI_SYMBOLS.IGetBroadcastByIdUseCase)
+    .toHigherOrderFunction(getBroadcastByIdUseCase, [
       DI_SYMBOLS.IInstrumentationService,
       DI_SYMBOLS.IBroadcastsRepository,
     ]);
@@ -88,6 +96,12 @@ export function createBroadcastsModule() {
     .toHigherOrderFunction(getBroadcastByFilenameController, [
       DI_SYMBOLS.IInstrumentationService,
       DI_SYMBOLS.IGetBroadcastByFilenameUseCase,
+    ]);
+  broadcastsModule
+    .bind(DI_SYMBOLS.IGetBroadcastByIdController)
+    .toHigherOrderFunction(getBroadcastByIdController, [
+      DI_SYMBOLS.IInstrumentationService,
+      DI_SYMBOLS.IGetBroadcastByIdUseCase,
     ]);
   broadcastsModule
     .bind(DI_SYMBOLS.IDeleteBroadcastController)

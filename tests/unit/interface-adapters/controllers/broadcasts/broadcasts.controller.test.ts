@@ -39,3 +39,17 @@ it('returns the broadcast DTO when looked up by filename', async () => {
 it('throws NotFoundError when the filename is unknown', async () => {
   await expect(getBroadcastByFilename('unknown.mp4')).rejects.toBeInstanceOf(NotFoundError);
 });
+
+it('returns the broadcast DTO when looked up by id', async () => {
+  const getBroadcastById = getInjection('IGetBroadcastByIdController');
+  const input = uploadInput();
+  const { id } = await createBroadcast(input);
+  await expect(getBroadcastById(id)).resolves.toMatchObject({ id, filename: input.filename });
+});
+
+it('throws NotFoundError for an unknown id and InputParseError for an invalid one', async () => {
+  const getBroadcastById = getInjection('IGetBroadcastByIdController');
+  await expect(getBroadcastById('missing-id-123')).rejects.toBeInstanceOf(NotFoundError);
+  await expect(getBroadcastById('')).rejects.toBeInstanceOf(InputParseError);
+  await expect(getBroadcastById(42)).rejects.toBeInstanceOf(InputParseError);
+});

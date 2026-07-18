@@ -2,15 +2,15 @@ import { FatalError } from 'workflow';
 import { getInjection } from '@/di/container';
 import { InputParseError, NotFoundError } from '@/src/entities/errors/common';
 
-export async function runVideoPipeline(filename: string) {
+export async function runVideoPipeline(broadcastId: string) {
   'use workflow';
 
-  const transcribe = await transcribeStep(filename);
-  const stories = await storiesStep(filename);
-  const headlines = await headlinesStep(filename);
-  const frames = await framesStep(filename);
+  const transcribe = await transcribeStep(broadcastId);
+  const stories = await storiesStep(broadcastId);
+  const headlines = await headlinesStep(broadcastId);
+  const frames = await framesStep(broadcastId);
 
-  return { filename, transcribe, stories, headlines, frames };
+  return { broadcastId, transcribe, stories, headlines, frames };
 }
 
 /**
@@ -27,30 +27,30 @@ async function guarded<T>(work: () => Promise<T>): Promise<T> {
   }
 }
 
-async function transcribeStep(filename: string) {
+async function transcribeStep(broadcastId: string) {
   'use step';
 
-  const { cached } = await guarded(() => getInjection('ITranscribeBroadcastController')(filename));
+  const { cached } = await guarded(() => getInjection('ITranscribeBroadcastController')(broadcastId));
   return { cached };
 }
 
-async function storiesStep(filename: string) {
+async function storiesStep(broadcastId: string) {
   'use step';
 
-  const { cached, stories } = await guarded(() => getInjection('IDetectStoriesController')(filename));
+  const { cached, stories } = await guarded(() => getInjection('IDetectStoriesController')(broadcastId));
   return { cached, count: stories.length };
 }
 
-async function headlinesStep(filename: string) {
+async function headlinesStep(broadcastId: string) {
   'use step';
 
-  const { cached, items } = await guarded(() => getInjection('IGenerateHeadlinesController')(filename));
+  const { cached, items } = await guarded(() => getInjection('IGenerateHeadlinesController')(broadcastId));
   return { cached, count: items.length };
 }
 
-async function framesStep(filename: string) {
+async function framesStep(broadcastId: string) {
   'use step';
 
-  const { cached, items } = await guarded(() => getInjection('IExtractFramesController')(filename));
+  const { cached, items } = await guarded(() => getInjection('IExtractFramesController')(broadcastId));
   return { cached, count: items.length };
 }

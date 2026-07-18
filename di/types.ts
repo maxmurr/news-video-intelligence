@@ -16,6 +16,7 @@ import type { ITranscriptionService } from '@/src/application/services/transcrip
 import type { ICreateBroadcastUseCase } from '@/src/application/use-cases/broadcasts/create-broadcast.use-case';
 import type { IDeleteBroadcastUseCase } from '@/src/application/use-cases/broadcasts/delete-broadcast.use-case';
 import type { IGetBroadcastByFilenameUseCase } from '@/src/application/use-cases/broadcasts/get-broadcast-by-filename.use-case';
+import type { IGetBroadcastByIdUseCase } from '@/src/application/use-cases/broadcasts/get-broadcast-by-id.use-case';
 import type { IGetBroadcastDetailUseCase } from '@/src/application/use-cases/broadcasts/get-broadcast-detail.use-case';
 import type { IGetBroadcastSummariesUseCase } from '@/src/application/use-cases/broadcasts/get-broadcast-summaries.use-case';
 import type { IGetChatContextUseCase } from '@/src/application/use-cases/broadcasts/get-chat-context.use-case';
@@ -27,6 +28,7 @@ import type { ISaveRunUseCase } from '@/src/application/use-cases/runs/save-run.
 import type { ICreateBroadcastController } from '@/src/interface-adapters/controllers/broadcasts/create-broadcast.controller';
 import type { IDeleteBroadcastController } from '@/src/interface-adapters/controllers/broadcasts/delete-broadcast.controller';
 import type { IGetBroadcastByFilenameController } from '@/src/interface-adapters/controllers/broadcasts/get-broadcast-by-filename.controller';
+import type { IGetBroadcastByIdController } from '@/src/interface-adapters/controllers/broadcasts/get-broadcast-by-id.controller';
 import type { IGetBroadcastDetailController } from '@/src/interface-adapters/controllers/broadcasts/get-broadcast-detail.controller';
 import type { IGetBroadcastSummariesController } from '@/src/interface-adapters/controllers/broadcasts/get-broadcast-summaries.controller';
 import type { IGetChatContextController } from '@/src/interface-adapters/controllers/broadcasts/get-chat-context.controller';
@@ -59,6 +61,7 @@ export const DI_SYMBOLS = {
   // Use Cases — broadcasts
   ICreateBroadcastUseCase: Symbol.for('ICreateBroadcastUseCase'),
   IGetBroadcastByFilenameUseCase: Symbol.for('IGetBroadcastByFilenameUseCase'),
+  IGetBroadcastByIdUseCase: Symbol.for('IGetBroadcastByIdUseCase'),
   IDeleteBroadcastUseCase: Symbol.for('IDeleteBroadcastUseCase'),
   IGetBroadcastDetailUseCase: Symbol.for('IGetBroadcastDetailUseCase'),
   IGetBroadcastSummariesUseCase: Symbol.for('IGetBroadcastSummariesUseCase'),
@@ -76,6 +79,7 @@ export const DI_SYMBOLS = {
   // Controllers — broadcasts
   ICreateBroadcastController: Symbol.for('ICreateBroadcastController'),
   IGetBroadcastByFilenameController: Symbol.for('IGetBroadcastByFilenameController'),
+  IGetBroadcastByIdController: Symbol.for('IGetBroadcastByIdController'),
   IDeleteBroadcastController: Symbol.for('IDeleteBroadcastController'),
   IGetBroadcastDetailController: Symbol.for('IGetBroadcastDetailController'),
   IGetBroadcastSummariesController: Symbol.for('IGetBroadcastSummariesController'),
@@ -114,6 +118,7 @@ export interface DI_RETURN_TYPES {
   // Use Cases — broadcasts
   ICreateBroadcastUseCase: ICreateBroadcastUseCase;
   IGetBroadcastByFilenameUseCase: IGetBroadcastByFilenameUseCase;
+  IGetBroadcastByIdUseCase: IGetBroadcastByIdUseCase;
   IDeleteBroadcastUseCase: IDeleteBroadcastUseCase;
   IGetBroadcastDetailUseCase: IGetBroadcastDetailUseCase;
   IGetBroadcastSummariesUseCase: IGetBroadcastSummariesUseCase;
@@ -131,6 +136,7 @@ export interface DI_RETURN_TYPES {
   // Controllers — broadcasts
   ICreateBroadcastController: ICreateBroadcastController;
   IGetBroadcastByFilenameController: IGetBroadcastByFilenameController;
+  IGetBroadcastByIdController: IGetBroadcastByIdController;
   IDeleteBroadcastController: IDeleteBroadcastController;
   IGetBroadcastDetailController: IGetBroadcastDetailController;
   IGetBroadcastSummariesController: IGetBroadcastSummariesController;

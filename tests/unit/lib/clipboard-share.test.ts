@@ -4,11 +4,13 @@ import { broadcastShareUrl, copyText, shareOrCopyUrl } from '@/lib/clipboard-sha
 
 describe('broadcastShareUrl', () => {
   it('builds a canonical /v/ path without query params', () => {
-    expect(broadcastShareUrl('desk-lead.mp4', 'https://news.example')).toBe('https://news.example/v/desk-lead.mp4');
+    expect(broadcastShareUrl('V1StGXR8_Z5jdHi6B-myT', 'https://news.example')).toBe(
+      'https://news.example/v/V1StGXR8_Z5jdHi6B-myT',
+    );
   });
 
-  it('encodes filenames safely', () => {
-    expect(broadcastShareUrl('a b.mp4', 'https://news.example')).toBe('https://news.example/v/a%20b.mp4');
+  it('encodes unexpected characters safely', () => {
+    expect(broadcastShareUrl('a b', 'https://news.example')).toBe('https://news.example/v/a%20b');
   });
 });
 

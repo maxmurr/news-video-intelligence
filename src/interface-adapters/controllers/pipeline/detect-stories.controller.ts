@@ -24,10 +24,10 @@ export type IDetectStoriesController = ReturnType<typeof detectStoriesController
 
 export const detectStoriesController =
   (instrumentationService: IInstrumentationService, detectStoriesUseCase: IDetectStoriesUseCase) =>
-  (filename: unknown): Promise<ReturnType<typeof presenter>> => {
+  (broadcastId: unknown): Promise<ReturnType<typeof presenter>> => {
     return instrumentationService.startSpan({ name: 'detectStories Controller' }, async () => {
-      const { data, error: inputParseError } = inputSchema.safeParse(filename);
-      if (inputParseError) throw new InputParseError('Invalid filename', { cause: inputParseError });
+      const { data, error: inputParseError } = inputSchema.safeParse(broadcastId);
+      if (inputParseError) throw new InputParseError('Invalid broadcast id', { cause: inputParseError });
 
       return presenter(await detectStoriesUseCase(data), instrumentationService);
     });

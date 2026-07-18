@@ -59,7 +59,7 @@ export function BroadcastCard({
     <div className="group bg-card hover:bg-muted/40 relative grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-2 transition-colors duration-150 ease-out sm:grid-cols-[8rem_minmax(0,1fr)_10rem] sm:gap-4">
       {/* Stretched overlay: the whole row navigates while content stays selectable siblings. */}
       <Link
-        href={`/v/${broadcast.filename}`}
+        href={`/v/${broadcast.id}`}
         aria-label={ariaLabel}
         className="focus-visible:border-ring focus-visible:ring-ring/50 absolute inset-0 z-0 rounded-lg focus-visible:ring-3 focus-visible:outline-none"
       />

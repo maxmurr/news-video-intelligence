@@ -18,8 +18,8 @@ import { AnswerWithCitations } from './timestamp';
 
 const CHAT_STORAGE_PREFIX = 'broadcast-desk:chat:';
 
-function chatStorageKey(filename: string): string {
-  return `${CHAT_STORAGE_PREFIX}${filename}`;
+function chatStorageKey(fileId: string): string {
+  return `${CHAT_STORAGE_PREFIX}${fileId}`;
 }
 
 function isStoredMessage(value: unknown): value is UIMessage {
@@ -32,9 +32,9 @@ function isStoredMessage(value: unknown): value is UIMessage {
   );
 }
 
-function readStoredMessages(filename: string): UIMessage[] | null {
+function readStoredMessages(fileId: string): UIMessage[] | null {
   try {
-    const raw = window.localStorage.getItem(chatStorageKey(filename));
+    const raw = window.localStorage.getItem(chatStorageKey(fileId));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed) || parsed.length === 0 || !parsed.every(isStoredMessage)) return null;
@@ -126,6 +126,7 @@ function ChatEmptyState({
 }
 
 export function ChatPanel({
+  fileId,
   filename,
   stories,
   transcriptReady,
@@ -133,6 +134,8 @@ export function ChatPanel({
   activeStory = null,
   onSeekAction,
 }: {
+  fileId: string;
+  /** Internal storage name; only used to derive the export filename. */
   filename: string;
   stories: StoryCard[];
   transcriptReady: boolean;
@@ -144,24 +147,27 @@ export function ChatPanel({
   onSeekAction: (seconds: number) => void;
 }) {
   const [input, setInput] = React.useState('');
-  const transport = React.useMemo(() => new DefaultChatTransport({ api: '/api/chat', body: { filename } }), [filename]);
+  const transport = React.useMemo(
+    () => new DefaultChatTransport({ api: `/api/chat/${encodeURIComponent(fileId)}` }),
+    [fileId],
+  );
   const { messages, setMessages, sendMessage, status, error } = useChat({ transport });
 
   // Restore the saved research trail once, then mirror settled messages back
   // to storage so a refresh or a trip to the library never loses citations.
   React.useEffect(() => {
-    const stored = readStoredMessages(filename);
+    const stored = readStoredMessages(fileId);
     if (stored) setMessages(stored);
-  }, [filename, setMessages]);
+  }, [fileId, setMessages]);
 
   React.useEffect(() => {
     if (messages.length === 0 || status === 'submitted' || status === 'streaming') return;
     try {
-      window.localStorage.setItem(chatStorageKey(filename), JSON.stringify(messages));
+      window.localStorage.setItem(chatStorageKey(fileId), JSON.stringify(messages));
     } catch {
       // Storage full or blocked — the live session still works; only persistence degrades.
     }
-  }, [status, messages, filename]);
+  }, [status, messages, fileId]);
 
   const busy = status === 'submitted' || status === 'streaming';
   const isEmpty = messages.length === 0;

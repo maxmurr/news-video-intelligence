@@ -9,7 +9,7 @@ import type { IInstrumentationService } from '@/src/application/services/instrum
 import type { IMediaProcessorService } from '@/src/application/services/media-processor.service.interface';
 import { InputParseError, NotFoundError } from '@/src/entities/errors/common';
 import { insertFrameSchema, type Frame } from '@/src/entities/models/frame';
-import { requireBroadcastByFilename, type StageResult } from './shared';
+import { requireBroadcastById, type StageResult } from './shared';
 
 // Frames this close to a story boundary are transition shots where the
 // previous story's visuals are still on screen. The picker prompt avoids them
@@ -27,23 +27,23 @@ export const extractFramesUseCase =
     mediaProcessorService: IMediaProcessorService,
     framePickerService: IFramePickerService,
   ) =>
-  (filename: string): Promise<StageResult<Frame[]>> => {
+  (broadcastId: string): Promise<StageResult<Frame[]>> => {
     return instrumentationService.startSpan({ name: 'extractFrames Use Case', op: 'function' }, async () => {
-      const broadcast = await requireBroadcastByFilename(broadcastsRepository, filename);
+      const broadcast = await requireBroadcastById(broadcastsRepository, broadcastId);
 
       const existing = await framesRepository.getFrames(broadcast.id);
       if (existing.length > 0) return { data: existing, cached: true };
 
       const headlines = await headlinesRepository.getHeadlines(broadcast.id);
       if (headlines.length === 0) {
-        throw new NotFoundError(`No headlines found for ${filename}. Run the headlines stage first.`);
+        throw new NotFoundError(`No headlines found for ${broadcast.filename}. Run the headlines stage first.`);
       }
 
       // Transcript timestamps can drift past the real video length; cap every
       // seek at the actual duration or extraction produces nothing. Probe
       // while the model call is in flight.
-      const durationPromise = mediaProcessorService.durationSeconds(filename);
-      const picks = await framePickerService.pickFrames(filename, headlines);
+      const durationPromise = mediaProcessorService.durationSeconds(broadcast.filename);
+      const picks = await framePickerService.pickFrames(broadcast.filename, headlines);
       const lastSeekableSec = Math.max(0, Math.floor(await durationPromise) - 1);
 
       const items = await Promise.all(
@@ -61,7 +61,7 @@ export const extractFramesUseCase =
             lastSeekableSec,
           );
 
-          const frameUrl = await mediaProcessorService.extractFrame(filename, frameSec, `story-${i + 1}.jpg`);
+          const frameUrl = await mediaProcessorService.extractFrame(broadcast.filename, frameSec, `story-${i + 1}.jpg`);
 
           return {
             startTime: story.startTime,

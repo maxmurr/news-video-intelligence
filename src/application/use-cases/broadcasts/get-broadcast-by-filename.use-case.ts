@@ -5,9 +5,10 @@ import type { Broadcast } from '@/src/entities/models/broadcast';
 export type IGetBroadcastByFilenameUseCase = ReturnType<typeof getBroadcastByFilenameUseCase>;
 
 /**
- * Filename is the broadcast's natural key everywhere upstream. Absence is a
- * normal answer here (the upload may not exist), so this returns undefined
- * rather than throwing — the caller decides whether a miss is a 404.
+ * Filename is internal (storage key); the public identifier is the id. This
+ * lookup remains for the local-fixture eval harness, which addresses
+ * broadcasts by fixture filename. Absence is a normal answer here, so this
+ * returns undefined rather than throwing.
  */
 export const getBroadcastByFilenameUseCase =
   (instrumentationService: IInstrumentationService, broadcastsRepository: IBroadcastsRepository) =>

@@ -26,10 +26,10 @@ export const getChatContextUseCase =
     transcriptsRepository: ITranscriptsRepository,
     headlinesRepository: IHeadlinesRepository,
   ) =>
-  (filename: string): Promise<ChatContext> => {
+  (broadcastId: string): Promise<ChatContext> => {
     return instrumentationService.startSpan({ name: 'getChatContext Use Case', op: 'function' }, async () => {
-      const broadcast = await broadcastsRepository.getBroadcastByFilename(filename);
-      if (!broadcast) throw new NotFoundError(`No broadcast for ${filename}`);
+      const broadcast = await broadcastsRepository.getBroadcast(broadcastId);
+      if (!broadcast) throw new NotFoundError(`No broadcast ${broadcastId}`);
 
       const [transcript, headlines] = await Promise.all([
         transcriptsRepository.getTranscript(broadcast.id),

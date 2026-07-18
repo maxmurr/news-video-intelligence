@@ -26,10 +26,10 @@ export type IGetChatContextController = ReturnType<typeof getChatContextControll
 
 export const getChatContextController =
   (instrumentationService: IInstrumentationService, getChatContextUseCase: IGetChatContextUseCase) =>
-  (filename: unknown): Promise<ReturnType<typeof presenter>> => {
+  (broadcastId: unknown): Promise<ReturnType<typeof presenter>> => {
     return instrumentationService.startSpan({ name: 'getChatContext Controller' }, async () => {
-      const { data, error: inputParseError } = inputSchema.safeParse(filename);
-      if (inputParseError) throw new InputParseError('Invalid filename', { cause: inputParseError });
+      const { data, error: inputParseError } = inputSchema.safeParse(broadcastId);
+      if (inputParseError) throw new InputParseError('Invalid broadcast id', { cause: inputParseError });
 
       return presenter(await getChatContextUseCase(data), instrumentationService);
     });
