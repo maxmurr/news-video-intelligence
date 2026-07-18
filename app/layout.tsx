@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Geist, Newsreader } from 'next/font/google';
+import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -21,8 +22,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`font-sans ${geist.variable} ${newsreader.variable}`}>
       <body className="bg-background text-foreground min-h-dvh antialiased">
-        <TooltipProvider>{children}</TooltipProvider>
-        <Toaster />
+        <NuqsAdapter>
+          <TooltipProvider>{children}</TooltipProvider>
+          <Toaster />
+        </NuqsAdapter>
       </body>
     </html>
   );

@@ -2,18 +2,26 @@
 
 import Link from 'next/link';
 import * as React from 'react';
+import { parseAsStringLiteral, useQueryState } from 'nuqs';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronUp } from 'lucide-react';
+import { ArrowLeft, ChevronUp, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { isPipelineComplete, type BroadcastDetail, type BroadcastStages } from '@/lib/broadcast-types';
+import { broadcastShareUrl, shareOrCopyUrl } from '@/lib/clipboard-share';
 import { useLocalDateLabel } from './use-local-date-label';
 import { cn } from '@/lib/utils';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { parseTranscriptLines } from '@/lib/timestamps';
 import { BroadcastPlayer } from './broadcast-player';
 import { ChatPanel } from './chat-panel';
 import { analysisConcern, StageProgress } from './stage-progress';
 import { activeStoryIndex, StoryGrid } from './story-grid';
 import { TranscriptPanel } from './transcript-panel';
+
+const BROADCAST_TABS = ['stories', 'transcript'] as const;
+const broadcastTabParser = parseAsStringLiteral(BROADCAST_TABS)
+  .withDefault('stories')
+  .withOptions({ history: 'replace', shallow: true });
 
 const POLL_INTERVAL_MS = 4000;
 /**
@@ -49,6 +57,13 @@ function clampToPlayable(media: HTMLVideoElement, seconds: number): number {
   return Math.max(0, Math.min(seconds, media.duration - 0.5));
 }
 
+/** Where to scroll after a seek — proof surfaces keep their source in view. */
+export type SeekScroll = 'player' | 'none';
+
+export interface SeekOptions {
+  scroll?: SeekScroll;
+}
+
 /**
  * Client orchestrator for one broadcast: polls pipeline progress until every
  * stage lands, owns the single video element, and routes every "jump to
@@ -61,6 +76,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
   const [activeSeconds, setActiveSeconds] = React.useState<number | null>(null);
   const [stalled, setStalled] = React.useState(false);
   const [retrying, setRetrying] = React.useState(false);
+  const [tab, setTab] = useQueryState('tab', broadcastTabParser);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const headerRef = React.useRef<HTMLElement | null>(null);
   const lastProgressKeyRef = React.useRef(stagesKey(initial.stages));
@@ -186,7 +202,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
   }, [broadcast.filename, broadcast.url]);
 
   const seekTo = React.useCallback(
-    (seconds: number) => {
+    (seconds: number, options?: SeekOptions) => {
       const video = videoRef.current;
       if (!video) return;
       // The highlight and announcement must reflect where playback actually
@@ -208,8 +224,10 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
       void video.play().catch(() => {
         // Autoplay can be blocked; the frame is still shown at the right moment.
       });
+      // Stories/chat jump to the player. Transcript keeps the clicked line —
+      // scrolling the header would yank the proof text out of view.
+      if ((options?.scroll ?? 'player') === 'none') return;
       const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      // A click jumps playback; scroll up to the header so the player is in view.
       (headerRef.current ?? video).scrollIntoView({
         behavior: prefersReducedMotion ? 'auto' : 'smooth',
         block: 'start',
@@ -218,15 +236,41 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
     [broadcast.stories],
   );
 
+  const seekFromTranscript = React.useCallback((seconds: number) => seekTo(seconds, { scroll: 'none' }), [seekTo]);
+
   const leadHeadline = broadcast.topHeadline?.trim() || null;
   const title = leadHeadline || (processing ? 'Processing…' : 'Untitled broadcast');
   const uploadedLabel = useLocalDateLabel(broadcast.uploadedAt, 'date');
   const activeIndex = activeStoryIndex(broadcast.stories, activeSeconds);
   const activeStory = activeIndex !== null ? broadcast.stories[activeIndex] : null;
   const concern = analysisConcern(broadcast.run, stalled);
+  const transcriptLineCount = React.useMemo(() => {
+    if (!broadcast.transcript) return null;
+    return parseTranscriptLines(broadcast.transcript).filter(line => line.seconds !== null).length;
+  }, [broadcast.transcript]);
+
+  const shareBroadcast = React.useCallback(async () => {
+    try {
+      const result = await shareOrCopyUrl({
+        title,
+        url: broadcastShareUrl(broadcast.filename),
+        text: `Watch: ${title}`,
+      });
+      if (result === 'copied') toast.success('Link copied', { description: 'Share it anywhere.' });
+      else if (result === 'shared') toast.success('Shared');
+    } catch {
+      toast.error('Could not share', { description: 'Copy the URL from the address bar instead.' });
+    }
+  }, [broadcast.filename, title]);
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col px-4 pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:pb-0">
+    <div
+      className={cn(
+        'mx-auto flex w-full max-w-7xl flex-col px-4 sm:px-6 lg:pb-0',
+        // Closed Ask sheet peeks; open sheet needs a taller spacer so last rows stay reachable.
+        askOpen ? 'pb-[min(48dvh,26rem)] lg:pb-0' : 'pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0',
+      )}
+    >
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {seekAnnouncement}
       </p>
@@ -240,7 +284,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
         >
           <ArrowLeft aria-hidden />
         </Button>
-        <div className="flex min-w-0 flex-col gap-0.5">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <h1 className="truncate text-base font-medium">{title}</h1>
           <p className="text-muted-foreground truncate text-xs">
             {leadHeadline && (
@@ -264,19 +308,22 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
             )}
           </p>
         </div>
+        <Button type="button" variant="ghost" size="icon-sm" aria-label="Share broadcast" onClick={shareBroadcast}>
+          <Share2 aria-hidden />
+        </Button>
       </header>
 
       {askOpen && (
         <button
           type="button"
           aria-label="Dismiss ask panel"
-          className="fixed inset-0 z-30 bg-black/20 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/10 lg:hidden"
           onClick={() => setAskOpen(false)}
         />
       )}
 
       <div className="grid min-h-0 grid-cols-1 gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
-        <div className="flex min-w-0 flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-4">
           <BroadcastPlayer src={broadcast.url} videoRef={videoRef} />
 
           {processing && (
@@ -289,16 +336,41 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
             />
           )}
 
-          <Tabs defaultValue="stories" className="gap-3">
-            <TabsList className="h-10 w-full" aria-label="Broadcast content">
-              <TabsTrigger value="stories" className="min-h-9 flex-1">
-                Stories
-              </TabsTrigger>
-              <TabsTrigger value="transcript" className="min-h-9 flex-1">
-                Transcript
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="stories" className="outline-none">
+          <Tabs
+            value={tab}
+            onValueChange={value => {
+              if (value === 'stories' || value === 'transcript') void setTab(value);
+            }}
+            className="gap-0"
+          >
+            <div className="bg-background sticky top-0 z-20">
+              <TabsList
+                variant="line"
+                className="h-10 w-full justify-start gap-0 border-b group-data-horizontal/tabs:h-10"
+                aria-label="Broadcast content"
+              >
+                <TabsTrigger
+                  value="stories"
+                  className="text-muted-foreground data-active:text-foreground min-h-9 flex-1 gap-1.5 sm:flex-none sm:px-3"
+                >
+                  Stories
+                  {broadcast.storyCount !== null && (
+                    <span className="font-normal tabular-nums opacity-70">{broadcast.storyCount}</span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="transcript"
+                  className="text-muted-foreground data-active:text-foreground min-h-9 flex-1 gap-1.5 sm:flex-none sm:px-3"
+                >
+                  Transcript
+                  {transcriptLineCount !== null && (
+                    <span className="font-normal tabular-nums opacity-70">{transcriptLineCount}</span>
+                  )}
+                </TabsTrigger>
+                <TabsIndicator />
+              </TabsList>
+            </div>
+            <TabsContent value="stories" className="pt-2 outline-none">
               <StoryGrid
                 stories={broadcast.stories}
                 pending={processing}
@@ -312,7 +384,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
               <TranscriptPanel
                 transcript={broadcast.transcript}
                 pending={!transcriptReady}
-                onSeekAction={seekTo}
+                onSeekAction={seekFromTranscript}
                 activeSeconds={activeSeconds}
               />
             </TabsContent>

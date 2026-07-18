@@ -22,10 +22,11 @@ function BroadcastSkeleton() {
     <div className="mx-auto flex w-full max-w-7xl flex-col px-4 pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:pb-0">
       <div className="flex items-center gap-3 border-b py-3">
         <Skeleton className="size-8 rounded-lg" />
-        <div className="flex min-w-0 flex-col gap-1.5">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <Skeleton className="h-4 w-48" />
           <Skeleton className="h-3 w-28" />
         </div>
+        <Skeleton className="size-7 rounded-lg" />
       </div>
       <div className="grid min-h-0 grid-cols-1 gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="flex min-w-0 flex-col gap-6">

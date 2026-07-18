@@ -58,8 +58,8 @@ function StoryRow({
         }
         aria-current={active ? 'true' : undefined}
         className={cn(
-          'bg-card hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-ring/50 grid w-full cursor-pointer grid-cols-[6rem_minmax(0,1fr)] items-start gap-3 rounded-lg border p-2 text-left transition-colors duration-150 ease-out focus-visible:ring-3 focus-visible:outline-none sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4',
-          active && 'border-primary bg-muted/40 ring-primary/15 ring-1',
+          'bg-card [@media(hover:hover)]:hover:bg-muted/30 focus-visible:border-ring focus-visible:ring-ring/50 grid w-full cursor-pointer grid-cols-[6rem_minmax(0,1fr)] items-start gap-3 rounded-md border p-2 text-left transition-colors duration-150 ease-out focus-visible:ring-3 focus-visible:outline-none sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4',
+          active && 'border-border bg-muted/40',
         )}
       >
         <div className="bg-muted relative aspect-video w-full overflow-hidden rounded-md">
@@ -77,11 +77,11 @@ function StoryRow({
             <Skeleton className="size-full rounded-none" />
           )}
           {active && (
-            <span className="absolute top-1 left-1 rounded-md bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
+            <span className="bg-background/90 text-foreground absolute top-1 left-1 rounded-md px-1.5 py-0.5 text-xs font-medium">
               Now playing
             </span>
           )}
-          <span className="absolute bottom-1 left-1 rounded-md bg-black/70 px-1.5 py-0.5 font-mono text-xs font-medium text-white tabular-nums">
+          <span className="absolute bottom-1 left-1 rounded-md bg-black/55 px-1.5 py-0.5 font-mono text-xs font-medium text-white tabular-nums">
             {story.startTime}
           </span>
         </div>
@@ -89,16 +89,16 @@ function StoryRow({
           {isLead ? (
             <>
               <span className="text-muted-foreground text-xs leading-none font-medium">Lead segment</span>
-              <p className="text-muted-foreground line-clamp-2 max-w-[56ch] text-xs leading-snug wrap-break-word">
+              <p className="text-muted-foreground line-clamp-2 max-w-[65ch] text-xs leading-snug wrap-anywhere">
                 {story.summary}
               </p>
             </>
           ) : (
             <>
-              <span className="font-heading block text-base leading-snug font-semibold tracking-[-0.015em] text-balance wrap-break-word">
+              <span className="font-heading block text-base leading-snug font-semibold tracking-[-0.015em] text-balance wrap-anywhere">
                 {story.headline}
               </span>
-              <p className="text-muted-foreground line-clamp-2 max-w-[56ch] text-sm leading-normal wrap-break-word">
+              <p className="text-muted-foreground line-clamp-2 max-w-[65ch] text-sm leading-normal wrap-anywhere">
                 {story.summary}
               </p>
             </>
@@ -111,7 +111,7 @@ function StoryRow({
 
 function StoryRowSkeleton() {
   return (
-    <li className="grid grid-cols-[6rem_minmax(0,1fr)] items-start gap-3 rounded-lg border p-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4">
+    <li className="grid grid-cols-[6rem_minmax(0,1fr)] items-start gap-3 rounded-md border p-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4">
       <Skeleton className="aspect-video w-full rounded-md" />
       <div className="flex flex-col gap-1.5 py-0.5">
         <Skeleton className="h-4 w-4/5" />
@@ -171,7 +171,7 @@ export function StoryGrid({
       <section {...sectionProps}>
         {heading}
         <p className="text-muted-foreground text-sm" role="status">
-          We found no stories in this broadcast.
+          No stories in this broadcast.
         </p>
       </section>
     );
