@@ -101,7 +101,9 @@ export default function Home() {
           <DeskHome />
         </Suspense>
       </main>
-      <HomeChat />
+      <Suspense fallback={null}>
+        <HomeChat />
+      </Suspense>
     </>
   );
 }
