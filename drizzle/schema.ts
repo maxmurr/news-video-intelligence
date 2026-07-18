@@ -10,8 +10,8 @@
  * it. Story/headline/frame rows carry an `idx` so a stage's ordered output
  * survives the round-trip through the database.
  */
-import { relations, sql } from 'drizzle-orm';
-import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { relations } from 'drizzle-orm';
+import { index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { nanoid } from 'nanoid';
 
 const primaryId = () =>
@@ -19,15 +19,12 @@ const primaryId = () =>
     .primaryKey()
     .$defaultFn(() => nanoid());
 
-const createdAt = () =>
-  integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`);
+const createdAt = () => timestamp('created_at').notNull().defaultNow();
 
 const updatedAt = () =>
-  integer('updated_at', { mode: 'timestamp' })
+  timestamp('updated_at')
     .notNull()
-    .default(sql`(unixepoch())`)
+    .defaultNow()
     .$onUpdateFn(() => new Date());
 
 const broadcastId = () =>
@@ -35,19 +32,17 @@ const broadcastId = () =>
     .notNull()
     .references(() => broadcasts.id, { onDelete: 'cascade' });
 
-export const broadcasts = sqliteTable('broadcasts', {
+export const broadcasts = pgTable('broadcasts', {
   id: primaryId(),
   filename: text('filename').notNull().unique(),
   url: text('url').notNull(),
   size: integer('size').notNull(),
-  uploadedAt: integer('uploaded_at', { mode: 'timestamp' })
-    .notNull()
-    .default(sql`(unixepoch())`),
+  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
 
-export const transcripts = sqliteTable('transcripts', {
+export const transcripts = pgTable('transcripts', {
   id: primaryId(),
   broadcastId: broadcastId().unique(),
   text: text('text').notNull(),
@@ -55,7 +50,7 @@ export const transcripts = sqliteTable('transcripts', {
   updatedAt: updatedAt(),
 });
 
-export const stories = sqliteTable(
+export const stories = pgTable(
   'stories',
   {
     id: primaryId(),
@@ -73,7 +68,7 @@ export const stories = sqliteTable(
   ],
 );
 
-export const headlines = sqliteTable(
+export const headlines = pgTable(
   'headlines',
   {
     id: primaryId(),
@@ -91,7 +86,7 @@ export const headlines = sqliteTable(
   ],
 );
 
-export const frames = sqliteTable(
+export const frames = pgTable(
   'frames',
   {
     id: primaryId(),
@@ -111,11 +106,11 @@ export const frames = sqliteTable(
   ],
 );
 
-export const runs = sqliteTable('runs', {
+export const runs = pgTable('runs', {
   id: primaryId(),
   broadcastId: broadcastId().unique(),
   runId: text('run_id'),
-  startedAt: integer('started_at', { mode: 'timestamp' }).notNull(),
+  startedAt: timestamp('started_at').notNull(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

@@ -1,8 +1,4 @@
-import { rm } from 'node:fs/promises';
-import path from 'node:path';
-
-import { FRAMES_DIR } from '@/lib/artifacts';
-import { uploads } from '@/lib/files';
+import { FRAMES_PREFIX, uploads } from '@/lib/files';
 import type { IFileStorageService } from '@/src/application/services/file-storage.service.interface';
 import type { IInstrumentationService } from '@/src/application/services/instrumentation.service.interface';
 
@@ -22,8 +18,14 @@ export class FileStorageService implements IFileStorageService {
   }
 
   async deleteFrames(filename: string): Promise<void> {
-    await this.instrumentationService.startSpan({ name: 'FileStorageService > deleteFrames', op: 'function' }, () =>
-      rm(path.join(FRAMES_DIR, filename.replace(/\.mp4$/, '')), { recursive: true, force: true }),
+    await this.instrumentationService.startSpan(
+      { name: 'FileStorageService > deleteFrames', op: 'function' },
+      async () => {
+        const prefix = `${FRAMES_PREFIX}/${filename.replace(/\.mp4$/, '')}/`;
+        const keys: string[] = [];
+        for await (const file of uploads.listAll({ prefix })) keys.push(file.key);
+        if (keys.length > 0) await uploads.delete(keys);
+      },
     );
   }
 }

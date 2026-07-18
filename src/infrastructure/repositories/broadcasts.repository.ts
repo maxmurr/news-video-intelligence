@@ -20,7 +20,7 @@ export class BroadcastsRepository implements IBroadcastsRepository {
         const query = db.insert(broadcasts).values(broadcast).returning();
 
         const [created] = await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
           () => query.execute(),
         );
 
@@ -39,7 +39,7 @@ export class BroadcastsRepository implements IBroadcastsRepository {
         const query = db.query.broadcasts.findFirst({ where: eq(broadcasts.id, id) });
 
         return await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
           () => query.execute(),
         );
       } catch (err) {
@@ -57,7 +57,7 @@ export class BroadcastsRepository implements IBroadcastsRepository {
           const query = db.query.broadcasts.findFirst({ where: eq(broadcasts.filename, filename) });
 
           return await this.instrumentationService.startSpan(
-            { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+            { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
             () => query.execute(),
           );
         } catch (err) {
@@ -74,7 +74,7 @@ export class BroadcastsRepository implements IBroadcastsRepository {
         const query = db.query.broadcasts.findMany({ orderBy: [desc(broadcasts.uploadedAt)] });
 
         return await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
           () => query.execute(),
         );
       } catch (err) {
@@ -90,7 +90,7 @@ export class BroadcastsRepository implements IBroadcastsRepository {
         const query = db.delete(broadcasts).where(eq(broadcasts.id, id)).returning();
 
         const [deleted] = await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
           () => query.execute(),
         );
 

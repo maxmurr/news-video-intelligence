@@ -1,0 +1,16 @@
+# ffmpeg/ffprobe aren't part of the Node image nixpacks builds by default; the
+# pipeline shells out to them, so add the nix package alongside the auto-detected
+# toolchain ('...' keeps node + pnpm that nixpacks resolves from package.json).
+[phases.setup]
+nixPkgs = ['...', 'ffmpeg']
+
+[phases.install]
+cmds = ['pnpm install --frozen-lockfile']
+
+[phases.build]
+cmds = ['pnpm build']
+
+[variables]
+HUSKY = '0'
+NEXT_TELEMETRY_DISABLED = '1'
+NIXPACKS_NODE_VERSION = '22'

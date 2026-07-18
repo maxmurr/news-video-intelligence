@@ -24,7 +24,7 @@ export class FramesRepository implements IFramesRepository {
           const query = invoker.insert(frames).values(rows).returning();
 
           return this.instrumentationService.startSpan(
-            { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+            { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
             () => query.execute(),
           );
         };
@@ -46,7 +46,7 @@ export class FramesRepository implements IFramesRepository {
         });
 
         return await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
           () => query.execute(),
         );
       } catch (err) {

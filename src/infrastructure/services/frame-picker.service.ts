@@ -1,9 +1,11 @@
 import { generateText, Output } from 'ai';
-import { stat } from 'node:fs/promises';
+import { unlink } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
 
-import { UPLOADS_DIR } from '@/lib/artifacts';
+import { downloadToFile, uploads } from '@/lib/files';
 import { MODELS } from '@/lib/models';
 import { formatStoryList } from '@/lib/schemas';
 import { TIMESTAMP_PATTERN } from '@/lib/timestamps';
@@ -30,13 +32,15 @@ export class FramePickerService implements IFramePickerService {
     return this.instrumentationService.startSpan(
       { name: 'FramePickerService > pickFrames', op: 'ai.run' },
       async () => {
-        const videoPath = path.join(UPLOADS_DIR, filename);
+        if (!(await uploads.exists(filename))) throw new NotFoundError(`File not found: ${filename}`);
+        const videoPath = path.join(tmpdir(), `inv-preview-${randomUUID()}-${filename}`);
+        let preview: Uint8Array;
         try {
-          await stat(videoPath);
-        } catch {
-          throw new NotFoundError(`File not found: ${filename}`);
+          await downloadToFile(filename, videoPath);
+          preview = await createFramePreview(videoPath);
+        } finally {
+          await unlink(videoPath).catch(() => {});
         }
-        const preview = await createFramePreview(videoPath);
 
         // Length is pinned so each frame pick lines up 1:1 with the headlines.
         const framePicksSchema = z.object({

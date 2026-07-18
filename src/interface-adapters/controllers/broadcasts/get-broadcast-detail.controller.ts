@@ -9,10 +9,13 @@ import type {
 import { InputParseError } from '@/src/entities/errors/common';
 import { mergeStoryCards, presentSummary } from './broadcast-presenters';
 
-function presenter(detail: BroadcastDetailResult, instrumentationService: IInstrumentationService): BroadcastDetail {
-  return instrumentationService.startSpan({ name: 'getBroadcastDetail Presenter', op: 'serialize' }, () => ({
-    ...presentSummary(detail),
-    stories: mergeStoryCards(detail),
+function presenter(
+  detail: BroadcastDetailResult,
+  instrumentationService: IInstrumentationService,
+): Promise<BroadcastDetail> {
+  return instrumentationService.startSpan({ name: 'getBroadcastDetail Presenter', op: 'serialize' }, async () => ({
+    ...(await presentSummary(detail)),
+    stories: await mergeStoryCards(detail),
     run: {
       status: detail.run.status,
       startedAt: detail.run.startedAt?.toISOString() ?? null,

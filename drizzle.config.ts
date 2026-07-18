@@ -1,11 +1,10 @@
 import { defineConfig } from 'drizzle-kit';
 
 export default defineConfig({
-  dialect: 'turso',
+  dialect: 'postgresql',
   schema: './drizzle/schema.ts',
   out: './drizzle/migrations',
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? 'file:sqlite.db',
-    authToken: process.env.DATABASE_AUTH_TOKEN,
+    url: process.env.DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/postgres',
   },
 });
