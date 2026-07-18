@@ -1,3 +1,4 @@
+import { withSentryConfig } from '@sentry/nextjs';
 import { withWorkflow } from 'workflow/next';
 import type { NextConfig } from 'next';
 
@@ -10,4 +11,9 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withWorkflow(nextConfig);
+export default withSentryConfig(withWorkflow(nextConfig), {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  tunnelRoute: '/monitoring',
+});
