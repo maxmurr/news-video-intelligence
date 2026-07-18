@@ -176,18 +176,42 @@ export function ChatPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {/* On mobile this anchors to the positioned dock sheet in broadcast-view,
+          landing beside the toggle row's chevron — panel chrome, so it never
+          overlaps message bubbles. Hidden with the panel while the dock is closed. */}
+      {!isEmpty && (
+        <ConversationDownload
+          messages={messages}
+          filename={exportFilename}
+          aria-label="Download this Q&A as Markdown"
+          title="Download this Q&A as Markdown"
+          className="top-3 right-11 size-9 after:absolute after:-inset-1 lg:hidden"
+        />
+      )}
+
       {/* Always in the a11y tree (sr-only on mobile); dock toggle carries the visible label. */}
       <div className="sr-only lg:not-sr-only lg:flex lg:items-center lg:justify-between lg:gap-2 lg:border-b lg:px-4 lg:py-3">
         <h2 className="text-base font-medium">Ask the broadcast</h2>
-        {!transcriptReady &&
-          (halted ? (
-            <span className="text-muted-foreground text-xs">Transcription paused</span>
-          ) : (
-            <span className="shimmer text-muted-foreground flex items-center gap-1.5 text-xs">
-              <Spinner className="size-3" />
-              Transcribing…
-            </span>
-          ))}
+        <div className="flex items-center gap-2">
+          {!transcriptReady &&
+            (halted ? (
+              <span className="text-muted-foreground text-xs">Transcription paused</span>
+            ) : (
+              <span className="shimmer text-muted-foreground flex items-center gap-1.5 text-xs">
+                <Spinner className="size-3" />
+                Transcribing…
+              </span>
+            ))}
+          {!isEmpty && (
+            <ConversationDownload
+              messages={messages}
+              filename={exportFilename}
+              aria-label="Download this Q&A as Markdown"
+              title="Download this Q&A as Markdown"
+              className="relative top-auto right-auto hidden size-7 after:absolute after:-inset-2.5 lg:inline-flex"
+            />
+          )}
+        </div>
       </div>
 
       {isEmpty ? (
@@ -226,13 +250,6 @@ export function ChatPanel({
               </p>
             )}
           </ConversationContent>
-          <ConversationDownload
-            messages={messages}
-            filename={exportFilename}
-            aria-label="Download this Q&A as Markdown"
-            title="Download this Q&A as Markdown"
-            className="top-2 right-2 size-7"
-          />
           <ConversationScrollButton />
         </Conversation>
       )}
