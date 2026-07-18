@@ -24,7 +24,11 @@ const adapter = s3({
   bucket: process.env.S3_BUCKET ?? 'bucket',
   endpoint: process.env.S3_ENDPOINT,
   region: process.env.S3_REGION ?? 'us-east-1',
-  forcePathStyle: true,
+  // Local rustfs and older buckets need path-style (`host/bucket/key`); newer
+  // virtual-hosted buckets (`bucket.host/key`) want it off. Default on for the
+  // docker-compose setup; set S3_FORCE_PATH_STYLE=false where the bucket is
+  // virtual-hosted.
+  forcePathStyle: process.env.S3_FORCE_PATH_STYLE !== 'false',
   credentials: {
     accessKeyId: process.env.S3_ACCESS_KEY ?? 'placeholder',
     secretAccessKey: process.env.S3_SECRET_KEY ?? 'placeholder',
