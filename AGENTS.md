@@ -27,3 +27,12 @@ npx opensrc <owner>/<repo>      # GitHub repo (e.g., npx opensrc vercel/ai)
 ```
 
 <!-- opensrc:end -->
+
+## Cursor Cloud specific instructions
+
+Single Next.js 16 app ("Broadcast Desk"): upload a news MP4, an AI pipeline extracts transcript/stories/headlines/frames, then chat grounded in the footage. Standard scripts live in `package.json` (`dev`, `lint`, `typecheck`, `test`, `build`, `db:*`).
+
+- Dependencies are refreshed on startup by the update script (`pnpm install`). `ffmpeg`/`ffprobe` are required by the media pipeline (`lib/video.ts`) and are already present in the base image.
+- Local DB is SQLite via libsql/drizzle at `./sqlite.db` (gitignored, so absent on a fresh VM). Run `pnpm db:push` once before running the app to create/sync the schema. Not needed for `pnpm test` (tests bind mock repositories via `NODE_ENV=test` in the DI modules, so no DB or AI key is required).
+- The AI pipeline and chat use the Vercel AI Gateway (`ai` SDK, Google Gemini models in `lib/models.ts`) and require the `AI_GATEWAY_API_KEY` secret. Without it, upload + broadcast library listing still work, but the pipeline fails at the transcribe stage with `GatewayAuthenticationError` and the broadcast page shows "Analysis failed". `pnpm evals` also needs this key.
+- Uploaded videos land in `public/uploads/`, extracted frames in `public/frames/` (both gitignored). The pipeline is orchestrated in-process by the `workflow` package via `app/api/videos` and `app/api/pipeline`; no separate worker process is needed for `pnpm dev`.
