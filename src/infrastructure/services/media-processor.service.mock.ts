@@ -10,6 +10,6 @@ export class MockMediaProcessorService implements IMediaProcessorService {
   }
 
   async extractFrame(filename: string, _atSeconds: number, frameName: string): Promise<string> {
-    return `/frames/${filename.replace(/\.mp4$/, '')}/${frameName}`;
+    return `frames/${filename.replace(/\.mp4$/, '')}/${frameName}`;
   }
 }

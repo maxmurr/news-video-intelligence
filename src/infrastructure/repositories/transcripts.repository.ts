@@ -27,7 +27,7 @@ export class TranscriptsRepository implements ITranscriptsRepository {
           .returning();
 
         const [saved] = await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
           () => query.execute(),
         );
 
@@ -46,7 +46,7 @@ export class TranscriptsRepository implements ITranscriptsRepository {
         const query = db.query.transcripts.findFirst({ where: eq(transcripts.broadcastId, broadcastId) });
 
         return await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
           () => query.execute(),
         );
       } catch (err) {

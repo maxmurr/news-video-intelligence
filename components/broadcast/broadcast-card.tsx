@@ -65,7 +65,7 @@ export function BroadcastCard({
       />
       <div className="bg-muted pointer-events-none relative z-10 col-start-1 aspect-video w-full overflow-hidden rounded-md">
         {broadcast.thumbnailUrl ? (
-          <Image src={broadcast.thumbnailUrl} alt="" fill sizes="128px" className="object-cover" />
+          <Image src={broadcast.thumbnailUrl} alt="" fill sizes="128px" className="object-cover" unoptimized />
         ) : (
           <div className="text-muted-foreground flex size-full items-center justify-center" aria-hidden>
             <Spinner className="size-4 motion-reduce:animate-none" />

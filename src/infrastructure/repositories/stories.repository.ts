@@ -24,7 +24,7 @@ export class StoriesRepository implements IStoriesRepository {
           const query = invoker.insert(stories).values(rows).returning();
 
           return this.instrumentationService.startSpan(
-            { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+            { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
             () => query.execute(),
           );
         };
@@ -46,7 +46,7 @@ export class StoriesRepository implements IStoriesRepository {
         });
 
         return await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
           () => query.execute(),
         );
       } catch (err) {

@@ -60,7 +60,7 @@ export async function POST(req: Request) {
   // The broadcast row must exist before the workflow starts — its first step
   // resolves the row by filename. Without the row the upload is invisible to
   // the DB-driven listing, so compensate by discarding the file.
-  const url = `/uploads/${filename}`;
+  const url = filename;
   let broadcastId: string;
   try {
     ({ id: broadcastId } = await getInjection('ICreateBroadcastController')({ filename, url, size }));
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
 
 /**
  * Removes a broadcast and everything derived from it: the row (child stages
- * cascade in SQLite) plus the uploaded video and extracted frames on disk.
+ * cascade in Postgres) plus the uploaded video and extracted frames in the bucket.
  */
 export async function DELETE(req: Request) {
   const filename = new URL(req.url).searchParams.get('filename');

@@ -18,8 +18,9 @@ export type Frame = z.infer<typeof selectFrameSchema>;
 
 /**
  * One representative-frame pick as the stage emits it, aligned 1:1 with the
- * headlines. `frameUrl` points at the extracted jpg on disk — the binary stays
- * out of the database. The repository assigns `idx` from the array position.
+ * headlines. `frameUrl` holds the extracted jpg's object key in the bucket —
+ * the binary stays out of the database, and readers presign the key on demand.
+ * The repository assigns `idx` from the array position.
  */
 export const insertFrameSchema = z.object({
   startTime: timestampSchema,

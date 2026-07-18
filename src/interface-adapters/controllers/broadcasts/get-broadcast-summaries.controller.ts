@@ -4,9 +4,12 @@ import type { BroadcastAnalysis } from '@/src/application/use-cases/broadcasts/b
 import type { IGetBroadcastSummariesUseCase } from '@/src/application/use-cases/broadcasts/get-broadcast-summaries.use-case';
 import { presentSummary } from './broadcast-presenters';
 
-function presenter(analyses: BroadcastAnalysis[], instrumentationService: IInstrumentationService): BroadcastSummary[] {
+function presenter(
+  analyses: BroadcastAnalysis[],
+  instrumentationService: IInstrumentationService,
+): Promise<BroadcastSummary[]> {
   return instrumentationService.startSpan({ name: 'getBroadcastSummaries Presenter', op: 'serialize' }, () =>
-    analyses.map(presentSummary),
+    Promise.all(analyses.map(presentSummary)),
   );
 }
 

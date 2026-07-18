@@ -24,7 +24,7 @@ export class HeadlinesRepository implements IHeadlinesRepository {
           const query = invoker.insert(headlines).values(rows).returning();
 
           return this.instrumentationService.startSpan(
-            { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+            { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
             () => query.execute(),
           );
         };
@@ -46,7 +46,7 @@ export class HeadlinesRepository implements IHeadlinesRepository {
         });
 
         return await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
           () => query.execute(),
         );
       } catch (err) {

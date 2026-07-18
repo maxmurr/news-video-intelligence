@@ -29,7 +29,7 @@ export class RunsRepository implements IRunsRepository {
           .returning();
 
         const [saved] = await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
           () => query.execute(),
         );
 
@@ -48,7 +48,7 @@ export class RunsRepository implements IRunsRepository {
         const query = db.query.runs.findFirst({ where: eq(runs.broadcastId, broadcastId) });
 
         return await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
+          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
           () => query.execute(),
         );
       } catch (err) {

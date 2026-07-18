@@ -86,7 +86,7 @@ it('extracts one frame per headline, clamped inside the story span', async () =>
     const frameSec = toSeconds(frame.frameTime);
     expect(frameSec).toBeGreaterThanOrEqual(toSeconds(headlines[i].startTime));
     expect(frameSec).toBeLessThanOrEqual(toSeconds(headlines[i].endTime));
-    expect(frame.frameUrl).toBe(`/frames/${filename.replace(/\.mp4$/, '')}/story-${i + 1}.jpg`);
+    expect(frame.frameUrl).toBe(`frames/${filename.replace(/\.mp4$/, '')}/story-${i + 1}.jpg`);
   });
 
   const again = await extractFrames(filename);

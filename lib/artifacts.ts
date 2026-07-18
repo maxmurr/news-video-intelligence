@@ -1,13 +1,12 @@
 /**
- * Shared filesystem contract for the binary artifacts that stay on disk:
- * where uploads and extracted frames live, what an acceptable upload
- * filename looks like, and the upload guard protocol.
+ * Shared contract for uploaded broadcast videos: what an acceptable upload
+ * filename looks like and the upload guard protocol. The binaries themselves
+ * live in the object bucket (see `lib/files.ts`); `PUBLIC_DIR` remains only for
+ * the local-fixture eval harness.
  */
 import path from 'node:path';
 
 export const PUBLIC_DIR = path.join(process.cwd(), 'public');
-export const UPLOADS_DIR = path.join(PUBLIC_DIR, 'uploads');
-export const FRAMES_DIR = path.join(PUBLIC_DIR, 'frames');
 
 /**
  * Security boundary for every route that touches public/uploads: word

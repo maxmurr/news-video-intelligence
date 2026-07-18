@@ -71,6 +71,7 @@ function StoryRow({
               priority={priority}
               sizes="(max-width: 640px) 6rem, 8rem"
               className="object-cover"
+              unoptimized
             />
           ) : (
             <Skeleton className="size-full rounded-none" />
