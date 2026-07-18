@@ -346,12 +346,12 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
             <div className="bg-background sticky top-0 z-20">
               <TabsList
                 variant="line"
-                className="h-10 w-full justify-start gap-0 border-b group-data-horizontal/tabs:h-10"
+                className="w-full justify-start gap-0 border-b group-data-horizontal/tabs:h-10"
                 aria-label="Broadcast content"
               >
                 <TabsTrigger
                   value="stories"
-                  className="text-muted-foreground data-active:text-foreground min-h-9 flex-1 gap-1.5 sm:flex-none sm:px-3"
+                  className="data-active:text-foreground min-h-9 flex-1 gap-1.5 sm:flex-none sm:px-3"
                 >
                   Stories
                   {broadcast.storyCount !== null && (
@@ -360,7 +360,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
                 </TabsTrigger>
                 <TabsTrigger
                   value="transcript"
-                  className="text-muted-foreground data-active:text-foreground min-h-9 flex-1 gap-1.5 sm:flex-none sm:px-3"
+                  className="text-muted-foreground min-h-9 flex-1 gap-1.5 sm:flex-none sm:px-3"
                 >
                   Transcript
                   {transcriptLineCount !== null && (
