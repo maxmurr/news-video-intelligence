@@ -72,21 +72,12 @@ function libraryCountLabel({
 export function BroadcastLibrary({ broadcasts }: { broadcasts: BroadcastSummary[] }) {
   const [query, setQuery] = React.useState('');
   const [expanded, setExpanded] = React.useState(false);
-  const [deleted, setDeleted] = React.useState<ReadonlySet<string>>(() => new Set());
   const deferredQuery = React.useDeferredValue(query);
   const hydrated = useHydrated();
 
-  // Drop just-deleted rows immediately so the desk feels responsive; the server
-  // listing reconciles on the next navigation. A stale filename lingering here
-  // after the prop refreshes is harmless — it matches nothing.
-  const live = React.useMemo(
-    () => broadcasts.filter(broadcast => !deleted.has(broadcast.filename)),
-    [broadcasts, deleted],
-  );
-
   const filtered = React.useMemo(
-    () => live.filter(broadcast => matchesQuery(broadcast, deferredQuery)),
-    [live, deferredQuery],
+    () => broadcasts.filter(broadcast => matchesQuery(broadcast, deferredQuery)),
+    [broadcasts, deferredQuery],
   );
 
   const isFiltering = deferredQuery.trim().length > 0;
@@ -95,7 +86,7 @@ export function BroadcastLibrary({ broadcasts }: { broadcasts: BroadcastSummary[
   const overflow = filtered.length - visible.length;
   const groups = groupBroadcastsByDay(visible, hydrated);
   const countLabel = libraryCountLabel({
-    total: live.length,
+    total: broadcasts.length,
     filtered: filtered.length,
     visible: visible.length,
     isFiltering,
@@ -142,11 +133,7 @@ export function BroadcastLibrary({ broadcasts }: { broadcasts: BroadcastSummary[
               <ul className="flex flex-col gap-2">
                 {group.items.map(broadcast => (
                   <li key={broadcast.filename}>
-                    <BroadcastCard
-                      broadcast={broadcast}
-                      timeOnly
-                      onDeletedAction={() => setDeleted(prev => new Set(prev).add(broadcast.filename))}
-                    />
+                    <BroadcastCard broadcast={broadcast} timeOnly />
                   </li>
                 ))}
               </ul>

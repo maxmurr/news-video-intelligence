@@ -4,7 +4,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Spinner } from '@/components/ui/spinner';
 import { PIPELINE_STAGES, type BroadcastSummary, type PipelineStage } from '@/lib/broadcast-types';
-import { DeleteBroadcastButton } from './delete-broadcast-button';
 import { useLocalDateLabel } from './use-local-date-label';
 
 const STAGE_LABELS: Record<PipelineStage, string> = {
@@ -45,13 +44,10 @@ function cardTitle(broadcast: BroadcastSummary): string {
 export function BroadcastCard({
   broadcast,
   timeOnly = false,
-  onDeletedAction,
 }: {
   broadcast: BroadcastSummary;
   /** When day headers already show the date, rows only need the clock time. */
   timeOnly?: boolean;
-  /** Client callback after a successful delete (optimistic library update). */
-  onDeletedAction?: () => void;
 }) {
   const statusLabel = stageStatusLabel(broadcast);
   const title = cardTitle(broadcast);
@@ -61,8 +57,7 @@ export function BroadcastCard({
 
   return (
     <div className="group bg-card hover:bg-muted/40 relative grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-2 transition-colors duration-150 ease-out sm:grid-cols-[8rem_minmax(0,1fr)_10rem] sm:gap-4">
-      {/* Stretched overlay: the whole row navigates, so the delete button can sit
-          beside it as a sibling instead of nesting interactive-in-interactive. */}
+      {/* Stretched overlay: the whole row navigates while content stays selectable siblings. */}
       <Link
         href={`/v/${broadcast.filename}`}
         aria-label={ariaLabel}
@@ -94,12 +89,6 @@ export function BroadcastCard({
         <span className="text-muted-foreground text-right text-xs whitespace-nowrap" aria-hidden>
           {statusLabel}
         </span>
-        <DeleteBroadcastButton
-          filename={broadcast.filename}
-          title={title}
-          onDeletedAction={onDeletedAction}
-          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 pointer-events-auto opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
-        />
       </div>
     </div>
   );
