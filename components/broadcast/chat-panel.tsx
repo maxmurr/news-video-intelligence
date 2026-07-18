@@ -13,6 +13,7 @@ import { Message, MessageContent } from '@/components/ai-elements/message';
 import { PromptInput, PromptInputSubmit, PromptInputTextarea } from '@/components/ai-elements/prompt-input';
 import { Suggestion, Suggestions } from '@/components/ai-elements/suggestion';
 import { AssistantMessageActions, assistantMessageText } from '@/components/chat/assistant-message-actions';
+import { UserMessage, userMessageText } from '@/components/chat/user-message';
 import { shouldShowLoadingShimmer } from '@/lib/chat-stream';
 import { browserTimeZone } from '@/lib/dates';
 import type { StoryCard } from '@/lib/broadcast-types';
@@ -165,7 +166,7 @@ export function ChatPanel({
       }),
     [fileId],
   );
-  const { messages, setMessages, sendMessage, status, error } = useChat({ transport });
+  const { messages, setMessages, sendMessage, regenerate, status, error } = useChat({ transport });
 
   // Restore the saved research trail once, then mirror settled messages back
   // to storage so a refresh or a trip to the library never loses citations.
@@ -264,6 +265,20 @@ export function ChatPanel({
               const isLast = messageIndex === messages.length - 1;
               const isStreamingAssistant = message.role === 'assistant' && busy && isLast;
               const responseText = message.role === 'assistant' ? assistantMessageText(message.parts) : '';
+              const promptText = message.role === 'user' ? userMessageText(message.parts) : '';
+
+              if (message.role === 'user') {
+                return (
+                  <Message from={message.role} key={message.id}>
+                    <UserMessage
+                      text={promptText}
+                      disabled={busy}
+                      onRetry={() => void regenerate({ messageId: message.id })}
+                      onEditRetry={next => void sendMessage({ text: next, messageId: message.id })}
+                    />
+                  </Message>
+                );
+              }
 
               return (
                 <Message from={message.role} key={message.id}>
@@ -271,18 +286,12 @@ export function ChatPanel({
                     {message.parts.map((part, i) =>
                       part.type === 'text' ? (
                         <div key={`${message.id}-${i}`} className="text-sm leading-normal">
-                          {message.role === 'assistant' ? (
-                            <AnswerWithCitations text={part.text} onSeekAction={onSeekAction} />
-                          ) : (
-                            <span className="whitespace-pre-wrap">{part.text}</span>
-                          )}
+                          <AnswerWithCitations text={part.text} onSeekAction={onSeekAction} />
                         </div>
                       ) : null,
                     )}
                   </MessageContent>
-                  {message.role === 'assistant' && !isStreamingAssistant && responseText ? (
-                    <AssistantMessageActions text={responseText} />
-                  ) : null}
+                  {!isStreamingAssistant && responseText ? <AssistantMessageActions text={responseText} /> : null}
                 </Message>
               );
             })}

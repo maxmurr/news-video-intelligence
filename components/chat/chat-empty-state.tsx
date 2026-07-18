@@ -22,6 +22,7 @@ import {
   assistantMessageText,
   countMessageSources,
 } from '@/components/chat/assistant-message-actions';
+import { UserMessage, userMessageText } from '@/components/chat/user-message';
 import { Button } from '@/components/ui/button';
 import { shouldShowLoadingShimmer } from '@/lib/chat-stream';
 import {
@@ -236,7 +237,7 @@ export function ChatEmptyState({ broadcasts }: { broadcasts: BroadcastSummary[] 
     [],
   );
 
-  const { messages, sendMessage, status, error, stop } = useChat({
+  const { messages, sendMessage, regenerate, status, error, stop } = useChat({
     id: 'general',
     transport,
   });
@@ -308,23 +309,31 @@ export function ChatEmptyState({ broadcasts }: { broadcasts: BroadcastSummary[] 
               const isStreamingAssistant = message.role === 'assistant' && busy && isLast;
               const responseText = message.role === 'assistant' ? assistantMessageText(message.parts) : '';
               const sourceCount = message.role === 'assistant' ? countMessageSources(message.parts) : 0;
+              const promptText = message.role === 'user' ? userMessageText(message.parts) : '';
+
+              if (message.role === 'user') {
+                return (
+                  <Message from={message.role} key={message.id}>
+                    <UserMessage
+                      text={promptText}
+                      disabled={busy}
+                      onRetry={() => void regenerate({ messageId: message.id })}
+                      onEditRetry={next => void sendMessage({ text: next, messageId: message.id })}
+                    />
+                  </Message>
+                );
+              }
 
               return (
                 <Message from={message.role} key={message.id}>
                   <MessageContent>
                     {message.parts.map((part, i) =>
                       part.type === 'text' ? (
-                        message.role === 'assistant' ? (
-                          <MessageResponse key={`${message.id}-${i}`}>{part.text}</MessageResponse>
-                        ) : (
-                          <span key={`${message.id}-${i}`} className="whitespace-pre-wrap">
-                            {part.text}
-                          </span>
-                        )
+                        <MessageResponse key={`${message.id}-${i}`}>{part.text}</MessageResponse>
                       ) : null,
                     )}
                   </MessageContent>
-                  {message.role === 'assistant' && !isStreamingAssistant && responseText ? (
+                  {!isStreamingAssistant && responseText ? (
                     <AssistantMessageActions text={responseText} sourceCount={sourceCount} />
                   ) : null}
                 </Message>
