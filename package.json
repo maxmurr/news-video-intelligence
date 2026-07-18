@@ -18,6 +18,7 @@
     "db:reset": "tsx drizzle/reset.ts && drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "workflow:bootstrap": "node node_modules/@workflow/world-postgres/bin/setup.js",
+    "storage:bootstrap": "node --env-file=.env.local scripts/bootstrap-storage.mjs",
     "prepare": "husky",
     "evals": "tsx evals/run.ts",
     "workflow:web": "workflow web",
