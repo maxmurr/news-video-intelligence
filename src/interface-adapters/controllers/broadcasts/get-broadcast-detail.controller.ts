@@ -16,6 +16,7 @@ function presenter(
   return instrumentationService.startSpan({ name: 'getBroadcastDetail Presenter', op: 'serialize' }, async () => ({
     ...(await presentSummary(detail)),
     stories: await mergeStoryCards(detail),
+    transcript: detail.transcript,
     run: {
       status: detail.run.status,
       startedAt: detail.run.startedAt?.toISOString() ?? null,

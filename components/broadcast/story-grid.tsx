@@ -128,6 +128,7 @@ export function StoryGrid({
   onSeekAction,
   activeSeconds = null,
   leadHeadline = null,
+  showHeading = true,
 }: {
   stories: StoryCard[];
   /** True while headlines/frames are still being generated. */
@@ -138,13 +139,24 @@ export function StoryGrid({
   activeSeconds?: number | null;
   /** Page lead headline — matching row omits a duplicate title. */
   leadHeadline?: string | null;
+  /** When false, omit the section heading (e.g. tabs already label the panel). */
+  showHeading?: boolean;
 }) {
+  const heading = showHeading ? (
+    <h2 id="stories-heading" className="text-base font-medium">
+      Stories
+    </h2>
+  ) : null;
+  const sectionProps = {
+    className: 'flex flex-col gap-3',
+    'aria-labelledby': showHeading ? 'stories-heading' : undefined,
+    'aria-label': showHeading ? undefined : 'Stories',
+  };
+
   if (stories.length === 0 && pending) {
     return (
-      <section className="flex flex-col gap-3" aria-busy="true" aria-labelledby="stories-heading">
-        <h2 id="stories-heading" className="text-base font-medium">
-          Stories
-        </h2>
+      <section {...sectionProps} aria-busy="true">
+        {heading}
         <ul className="flex flex-col gap-2" aria-label="Stories loading">
           <StoryRowSkeleton />
           <StoryRowSkeleton />
@@ -156,10 +168,8 @@ export function StoryGrid({
 
   if (stories.length === 0) {
     return (
-      <section className="flex flex-col gap-3" aria-labelledby="stories-heading">
-        <h2 id="stories-heading" className="text-base font-medium">
-          Stories
-        </h2>
+      <section {...sectionProps}>
+        {heading}
         <p className="text-muted-foreground text-sm" role="status">
           We found no stories in this broadcast.
         </p>
@@ -170,10 +180,8 @@ export function StoryGrid({
   const activeIndex = activeStoryIndex(stories, activeSeconds);
 
   return (
-    <section className="flex flex-col gap-3" aria-labelledby="stories-heading">
-      <h2 id="stories-heading" className="text-base font-medium">
-        Stories
-      </h2>
+    <section {...sectionProps}>
+      {heading}
       <ul className="flex flex-col gap-2">
         {stories.map((story, i) => {
           const isLead = leadHeadline != null && headlinesMatch(story.headline, leadHeadline);

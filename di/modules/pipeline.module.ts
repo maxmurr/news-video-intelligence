@@ -64,6 +64,7 @@ export function createPipelineModule() {
       DI_SYMBOLS.ITranscriptsRepository,
       DI_SYMBOLS.IStoriesRepository,
       DI_SYMBOLS.IStorySegmentationService,
+      DI_SYMBOLS.IMediaProcessorService,
     ]);
   pipelineModule
     .bind(DI_SYMBOLS.IGenerateHeadlinesUseCase)

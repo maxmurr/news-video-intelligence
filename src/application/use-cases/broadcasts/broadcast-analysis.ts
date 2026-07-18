@@ -17,14 +17,16 @@ export interface AnalysisRepositories {
 export interface BroadcastAnalysis {
   broadcast: Broadcast;
   stages: BroadcastStages;
+  /** Full timestamped transcript text when transcription has finished; otherwise null. */
+  transcript: string | null;
   headlines: Headline[];
   frames: Frame[];
 }
 
 /**
  * One query per child aggregate — the shared read behind every broadcast
- * view (stage flags, summaries, story cards). The transcript and stories are
- * fetched only for their existence bits.
+ * view (stage flags, transcript, summaries, story cards). Stories are fetched
+ * only for their existence bit.
  */
 export async function loadBroadcastAnalysis(
   repositories: AnalysisRepositories,
@@ -45,6 +47,7 @@ export async function loadBroadcastAnalysis(
       headlines: headlines.length > 0,
       frames: frames.length > 0,
     },
+    transcript: transcript?.text ?? null,
     headlines,
     frames,
   };

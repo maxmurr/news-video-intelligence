@@ -30,6 +30,7 @@ it('reports untouched stages and an unknown run before the pipeline starts', asy
   const detail = await getDetail(filename);
 
   expect(detail?.stages).toEqual({ transcript: false, stories: false, headlines: false, frames: false });
+  expect(detail?.transcript).toBeNull();
   expect(detail?.run.status).toBe('unknown');
 });
 
@@ -48,6 +49,7 @@ it('reports a completed pipeline without querying the engine', async () => {
 
   const detail = await getDetail(filename);
   expect(detail?.stages).toEqual({ transcript: true, stories: true, headlines: true, frames: true });
+  expect(detail?.transcript).toMatch(/^00:00 /);
   expect(detail?.run.status).toBe('completed');
   expect(detail?.headlines).toHaveLength(2);
   expect(detail?.frames).toHaveLength(2);

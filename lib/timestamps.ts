@@ -48,6 +48,26 @@ export function transcriptTimestamps(transcript: string): string[] {
   return [...transcript.matchAll(new RegExp(LINE_TIMESTAMP.source, 'gm'))].map(m => m[1]);
 }
 
+export interface TranscriptLine {
+  timestamp: string | null;
+  seconds: number | null;
+  text: string;
+}
+
+/** Split a timestamped transcript into seekable rows. */
+export function parseTranscriptLines(transcript: string): TranscriptLine[] {
+  return transcript
+    .split('\n')
+    .map(raw => raw.trimEnd())
+    .filter(raw => raw.length > 0)
+    .map(raw => {
+      const timestamp = lineTimestamp(raw);
+      if (timestamp === null) return { timestamp: null, seconds: null, text: raw };
+      const text = raw.slice(timestamp.length).trimStart();
+      return { timestamp, seconds: timestampToSeconds(timestamp), text };
+    });
+}
+
 /** Transcript lines whose leading timestamp falls within [start, end]. */
 export function transcriptSpan(transcript: string, start: string, end: string): string {
   const startSec = timestampToSeconds(start);

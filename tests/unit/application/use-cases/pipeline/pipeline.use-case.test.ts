@@ -48,6 +48,17 @@ it('detects stories with positional idx and caches them', async () => {
   expect(again.cached).toBe(true);
 });
 
+it('clamps drifted spans to the video duration and drops stories starting past it', async () => {
+  await transcribe(filename);
+
+  // The mock segmentation ends its second story at 10:30 and starts a third
+  // at 10:05, both past the mock media processor's 600s (10:00) duration.
+  const { data: stories } = await detectStories(filename);
+  expect(stories).toHaveLength(2);
+  expect(stories[1].startTime).toBe('05:00');
+  expect(stories[1].endTime).toBe('10:00');
+});
+
 it('requires stories before generating headlines', async () => {
   await transcribe(filename);
   await expect(generateHeadlines(filename)).rejects.toBeInstanceOf(NotFoundError);

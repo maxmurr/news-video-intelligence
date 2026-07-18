@@ -70,3 +70,4 @@ evals/results/
 /.swc
 
 .impeccable
+dogfood-output/

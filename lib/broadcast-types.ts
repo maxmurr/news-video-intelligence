@@ -58,5 +58,7 @@ export interface BroadcastRun {
 
 export interface BroadcastDetail extends BroadcastSummary {
   stories: StoryCard[];
+  /** Full timestamped transcript when available; null while transcription is pending. */
+  transcript: string | null;
   run: BroadcastRun;
 }

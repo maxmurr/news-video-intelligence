@@ -8,10 +8,12 @@ import { Button } from '@/components/ui/button';
 import { isPipelineComplete, type BroadcastDetail, type BroadcastStages } from '@/lib/broadcast-types';
 import { useLocalDateLabel } from './use-local-date-label';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BroadcastPlayer } from './broadcast-player';
 import { ChatPanel } from './chat-panel';
 import { analysisConcern, StageProgress } from './stage-progress';
 import { activeStoryIndex, StoryGrid } from './story-grid';
+import { TranscriptPanel } from './transcript-panel';
 
 const POLL_INTERVAL_MS = 4000;
 /**
@@ -35,6 +37,16 @@ function formatSeekClock(seconds: number): string {
   const minutes = Math.floor(clamped / 60);
   const rest = clamped % 60;
   return `${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
+}
+
+/**
+ * Pipeline timestamps can drift past the real video length; an unclamped seek
+ * lands the player in the ended state and plays nothing. Stop half a second
+ * short of the end so the cited moment still renders and plays.
+ */
+function clampToPlayable(media: HTMLVideoElement, seconds: number): number {
+  if (!Number.isFinite(media.duration)) return seconds;
+  return Math.max(0, Math.min(seconds, media.duration - 0.5));
 }
 
 /**
@@ -177,17 +189,21 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
     (seconds: number) => {
       const video = videoRef.current;
       if (!video) return;
+      // The highlight and announcement must reflect where playback actually
+      // lands, so both derive from the same clamped target as the seek itself.
+      const commit = (target: number) => {
+        video.currentTime = target;
+        setActiveSeconds(target);
+        const index = activeStoryIndex(broadcast.stories, target);
+        const story = index !== null ? broadcast.stories[index] : undefined;
+        const clock = formatSeekClock(target);
+        setSeekAnnouncement(story ? `Now playing: ${story.headline} at ${clock}` : `Playing at ${clock}`);
+      };
       // Seeking before metadata loads gets clamped to 0 on Safari/iOS.
       if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
-        video.currentTime = seconds;
+        commit(clampToPlayable(video, seconds));
       } else {
-        video.addEventListener(
-          'loadedmetadata',
-          () => {
-            video.currentTime = seconds;
-          },
-          { once: true },
-        );
+        video.addEventListener('loadedmetadata', () => commit(clampToPlayable(video, seconds)), { once: true });
       }
       void video.play().catch(() => {
         // Autoplay can be blocked; the frame is still shown at the right moment.
@@ -198,12 +214,6 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
         behavior: prefersReducedMotion ? 'auto' : 'smooth',
         block: 'start',
       });
-      setActiveSeconds(seconds);
-
-      const index = activeStoryIndex(broadcast.stories, seconds);
-      const story = index !== null ? broadcast.stories[index] : undefined;
-      const clock = formatSeekClock(seconds);
-      setSeekAnnouncement(story ? `Now playing: ${story.headline} at ${clock}` : `Playing at ${clock}`);
     },
     [broadcast.stories],
   );
@@ -279,13 +289,34 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
             />
           )}
 
-          <StoryGrid
-            stories={broadcast.stories}
-            pending={processing}
-            onSeekAction={seekTo}
-            activeSeconds={activeSeconds}
-            leadHeadline={leadHeadline}
-          />
+          <Tabs defaultValue="stories" className="gap-3">
+            <TabsList className="h-10 w-full" aria-label="Broadcast content">
+              <TabsTrigger value="stories" className="min-h-9 flex-1">
+                Stories
+              </TabsTrigger>
+              <TabsTrigger value="transcript" className="min-h-9 flex-1">
+                Transcript
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="stories" className="outline-none">
+              <StoryGrid
+                stories={broadcast.stories}
+                pending={processing}
+                onSeekAction={seekTo}
+                activeSeconds={activeSeconds}
+                leadHeadline={leadHeadline}
+                showHeading={false}
+              />
+            </TabsContent>
+            <TabsContent value="transcript" className="outline-none">
+              <TranscriptPanel
+                transcript={broadcast.transcript}
+                pending={!transcriptReady}
+                onSeekAction={seekTo}
+                activeSeconds={activeSeconds}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
 
         <aside
