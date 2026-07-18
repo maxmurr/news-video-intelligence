@@ -381,6 +381,7 @@ export function ChatEmptyState({ broadcasts }: { broadcasts: BroadcastSummary[] 
             className="min-h-16 resize-none border-0 bg-transparent px-3 pt-3 pb-2 text-base shadow-none focus-visible:ring-0"
             spellCheck
             autoComplete="off"
+            autoFocus
             data-1p-ignore
             data-lpignore="true"
             disabled={busy}
