@@ -40,6 +40,20 @@ export async function parseChatRequest(req: Request): Promise<ParsedChatRequest 
   }
 }
 
+/** The concatenated text of the most recent user message — the retrieval query. */
+export function latestUserText(messages: UIMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (message.role !== 'user') continue;
+    return message.parts
+      .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+      .map(part => part.text)
+      .join(' ')
+      .trim();
+  }
+  return '';
+}
+
 /** Streams a chat completion under the given system prompt as a UI message stream. */
 export async function streamChatResponse(system: string, messages: UIMessage[]): Promise<Response> {
   const result = streamText({

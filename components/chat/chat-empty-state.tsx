@@ -272,10 +272,14 @@ export function ChatEmptyState({ broadcasts }: { broadcasts: BroadcastSummary[] 
     void sendMessage({ text: trimmed });
   }
 
+  // Desk chrome: py-6 (3rem) + nav (2rem) + gap-6 (1.5rem) + safe-area.
+  // Keep overflow on the conversation only — outer overflow-hidden clips the prompt focus ring.
+  const filledHeight = 'h-[calc(100dvh-6.5rem-env(safe-area-inset-bottom,0px))] min-h-0';
+
   return (
-    <div className={cn('flex w-full flex-col', hasMessages ? 'min-h-[calc(100dvh-5.5rem)] gap-4' : 'gap-6')}>
+    <div className={cn('flex w-full flex-col', hasMessages ? cn(filledHeight, 'gap-4') : 'gap-6')}>
       {!hasMessages ? (
-        <header className="flex flex-col gap-1.5 border-b pb-4">
+        <header className="flex shrink-0 flex-col gap-1.5 border-b pb-4">
           <h1 className="font-heading max-w-2xl text-2xl leading-[1.1] font-semibold tracking-tight text-balance sm:text-3xl">
             Desk assistant
           </h1>
@@ -285,13 +289,13 @@ export function ChatEmptyState({ broadcasts }: { broadcasts: BroadcastSummary[] 
           </p>
         </header>
       ) : (
-        <header className="flex min-w-0 items-start justify-between gap-3 border-b pb-4">
+        <header className="flex min-w-0 shrink-0 items-start justify-between gap-3 border-b pb-4">
           <h1 className="min-w-0 text-base font-medium text-pretty">Desk assistant</h1>
         </header>
       )}
 
       {hasMessages ? (
-        <Conversation className="min-h-0 w-full flex-1">
+        <Conversation className="min-h-0 w-full flex-1 overflow-hidden">
           <ConversationContent className="gap-4 px-0 py-2">
             {messages.map(message => (
               <Message from={message.role} key={message.id}>
@@ -321,7 +325,7 @@ export function ChatEmptyState({ broadcasts }: { broadcasts: BroadcastSummary[] 
         </Conversation>
       ) : null}
 
-      <div className="mt-auto flex w-full flex-col gap-2">
+      <div className={cn('flex w-full shrink-0 flex-col gap-2', !hasMessages && 'mt-auto')}>
         {!hasMessages ? (
           <Suggestions>
             {starters.map(suggestion => (
@@ -345,7 +349,7 @@ export function ChatEmptyState({ broadcasts }: { broadcasts: BroadcastSummary[] 
 
         <PromptInput
           onSubmit={message => submit(message.text)}
-          className="w-full **:data-[slot=input-group]:h-auto **:data-[slot=input-group]:overflow-hidden"
+          className="w-full **:data-[slot=input-group]:h-auto **:data-[slot=input-group]:overflow-visible"
         >
           <PromptInputTextarea
             value={input}
@@ -365,12 +369,14 @@ export function ChatEmptyState({ broadcasts }: { broadcasts: BroadcastSummary[] 
           />
           <PromptInputFooter className="border-border/60 justify-between border-t px-2 pt-2 pb-2">
             <PromptInputTools>
-              <BroadcastPicker
-                broadcasts={broadcasts}
-                selectedId={selectedId}
-                disabled={busy}
-                onSelectedIdChange={changeSelection}
-              />
+              {!hasMessages ? (
+                <BroadcastPicker
+                  broadcasts={broadcasts}
+                  selectedId={selectedId}
+                  disabled={busy}
+                  onSelectedIdChange={changeSelection}
+                />
+              ) : null}
             </PromptInputTools>
             <PromptInputSubmit
               status={hasScope ? 'ready' : status}

@@ -27,4 +27,15 @@ export const MODELS = {
   frames: 'google/gemini-3.5-flash',
   /** Interactive chat over pipeline output. Not eval-covered yet. */
   chat: 'google/gemini-3.5-flash',
+  /** Transcript-chunk embeddings for pgvector search. 1536-dim, multilingual. */
+  embed: 'cohere/embed-v4.0',
+  /** Reranks vector candidates by query relevance. Cross-lingual, pairs with embed-v4. Not eval-covered yet. */
+  rerank: 'cohere/rerank-v4-fast',
 } as const;
+
+/**
+ * The `embed` model's output width. Baked into the pgvector column and HNSW
+ * index, so schema and embedding service read it from here — changing it means
+ * a re-embed and index rebuild (see docs/adr/0001).
+ */
+export const EMBEDDING_DIMENSIONS = 1536;

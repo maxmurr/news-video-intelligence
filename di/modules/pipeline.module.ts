@@ -2,9 +2,12 @@ import { createModule } from '@evyweb/ioctopus';
 
 import { DI_SYMBOLS } from '@/di/types';
 import { detectStoriesUseCase } from '@/src/application/use-cases/pipeline/detect-stories.use-case';
+import { embedTranscriptUseCase } from '@/src/application/use-cases/pipeline/embed-transcript.use-case';
 import { extractFramesUseCase } from '@/src/application/use-cases/pipeline/extract-frames.use-case';
 import { generateHeadlinesUseCase } from '@/src/application/use-cases/pipeline/generate-headlines.use-case';
 import { transcribeBroadcastUseCase } from '@/src/application/use-cases/pipeline/transcribe-broadcast.use-case';
+import { EmbeddingService } from '@/src/infrastructure/services/embedding.service';
+import { MockEmbeddingService } from '@/src/infrastructure/services/embedding.service.mock';
 import { FramePickerService } from '@/src/infrastructure/services/frame-picker.service';
 import { MockFramePickerService } from '@/src/infrastructure/services/frame-picker.service.mock';
 import { HeadlineWriterService } from '@/src/infrastructure/services/headline-writer.service';
@@ -16,6 +19,7 @@ import { MockStorySegmentationService } from '@/src/infrastructure/services/stor
 import { TranscriptionService } from '@/src/infrastructure/services/transcription.service';
 import { MockTranscriptionService } from '@/src/infrastructure/services/transcription.service.mock';
 import { detectStoriesController } from '@/src/interface-adapters/controllers/pipeline/detect-stories.controller';
+import { embedTranscriptController } from '@/src/interface-adapters/controllers/pipeline/embed-transcript.controller';
 import { extractFramesController } from '@/src/interface-adapters/controllers/pipeline/extract-frames.controller';
 import { generateHeadlinesController } from '@/src/interface-adapters/controllers/pipeline/generate-headlines.controller';
 import { transcribeBroadcastController } from '@/src/interface-adapters/controllers/pipeline/transcribe-broadcast.controller';
@@ -29,6 +33,7 @@ export function createPipelineModule() {
     pipelineModule.bind(DI_SYMBOLS.IStorySegmentationService).toClass(MockStorySegmentationService);
     pipelineModule.bind(DI_SYMBOLS.IHeadlineWriterService).toClass(MockHeadlineWriterService);
     pipelineModule.bind(DI_SYMBOLS.IFramePickerService).toClass(MockFramePickerService);
+    pipelineModule.bind(DI_SYMBOLS.IEmbeddingService).toClass(MockEmbeddingService);
   } else {
     pipelineModule
       .bind(DI_SYMBOLS.IMediaProcessorService)
@@ -45,6 +50,7 @@ export function createPipelineModule() {
     pipelineModule
       .bind(DI_SYMBOLS.IFramePickerService)
       .toClass(FramePickerService, [DI_SYMBOLS.IInstrumentationService]);
+    pipelineModule.bind(DI_SYMBOLS.IEmbeddingService).toClass(EmbeddingService, [DI_SYMBOLS.IInstrumentationService]);
   }
 
   pipelineModule
@@ -55,6 +61,15 @@ export function createPipelineModule() {
       DI_SYMBOLS.ITranscriptsRepository,
       DI_SYMBOLS.IMediaProcessorService,
       DI_SYMBOLS.ITranscriptionService,
+    ]);
+  pipelineModule
+    .bind(DI_SYMBOLS.IEmbedTranscriptUseCase)
+    .toHigherOrderFunction(embedTranscriptUseCase, [
+      DI_SYMBOLS.IInstrumentationService,
+      DI_SYMBOLS.IBroadcastsRepository,
+      DI_SYMBOLS.ITranscriptsRepository,
+      DI_SYMBOLS.ITranscriptChunksRepository,
+      DI_SYMBOLS.IEmbeddingService,
     ]);
   pipelineModule
     .bind(DI_SYMBOLS.IDetectStoriesUseCase)
@@ -92,6 +107,12 @@ export function createPipelineModule() {
     .toHigherOrderFunction(transcribeBroadcastController, [
       DI_SYMBOLS.IInstrumentationService,
       DI_SYMBOLS.ITranscribeBroadcastUseCase,
+    ]);
+  pipelineModule
+    .bind(DI_SYMBOLS.IEmbedTranscriptController)
+    .toHigherOrderFunction(embedTranscriptController, [
+      DI_SYMBOLS.IInstrumentationService,
+      DI_SYMBOLS.IEmbedTranscriptUseCase,
     ]);
   pipelineModule
     .bind(DI_SYMBOLS.IDetectStoriesController)

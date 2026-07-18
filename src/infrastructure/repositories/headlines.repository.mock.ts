@@ -21,4 +21,11 @@ export class MockHeadlinesRepository implements IHeadlinesRepository {
   async getHeadlines(broadcastId: string): Promise<Headline[]> {
     return this.headlines.filter(headline => headline.broadcastId === broadcastId).sort((a, b) => a.idx - b.idx);
   }
+
+  async getTopHeadlines(broadcastIds: string[]): Promise<{ broadcastId: string; headline: string }[]> {
+    const wanted = new Set(broadcastIds);
+    return this.headlines
+      .filter(headline => headline.idx === 0 && wanted.has(headline.broadcastId))
+      .map(headline => ({ broadcastId: headline.broadcastId, headline: headline.headline }));
+  }
 }

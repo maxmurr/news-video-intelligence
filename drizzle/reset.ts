@@ -6,7 +6,16 @@
  */
 import { Pool } from 'pg';
 
-const APP_TABLES = ['frames', 'headlines', 'stories', 'transcripts', 'runs', 'broadcasts', '__drizzle_migrations'];
+const APP_TABLES = [
+  'transcript_chunks',
+  'frames',
+  'headlines',
+  'stories',
+  'transcripts',
+  'runs',
+  'broadcasts',
+  '__drizzle_migrations',
+];
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/postgres',
@@ -16,6 +25,9 @@ try {
   for (const table of APP_TABLES) {
     await pool.query(`DROP TABLE IF EXISTS "${table}" CASCADE`);
   }
+  // The transcript_chunks table needs the pgvector type to exist before the
+  // schema tool (push or migrate) recreates it.
+  await pool.query('CREATE EXTENSION IF NOT EXISTS vector');
   console.log(`Dropped ${APP_TABLES.length} app tables.`);
 } finally {
   await pool.end();

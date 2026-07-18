@@ -7,6 +7,10 @@ const createBroadcast = getInjection('ICreateBroadcastUseCase');
 const getDetail = getInjection('IGetBroadcastDetailUseCase');
 const getSummaries = getInjection('IGetBroadcastSummariesUseCase');
 const getChatContext = getInjection('IGetChatContextUseCase');
+const searchLibrary = getInjection('ISearchLibraryUseCase');
+const embedTranscript = getInjection('IEmbedTranscriptUseCase');
+const transcribe = getInjection('ITranscribeBroadcastUseCase');
+const getTitles = getInjection('IGetBroadcastTitlesUseCase');
 
 let filename: string;
 let broadcastId: string;
@@ -76,4 +80,33 @@ it('returns a null transcript in chat context before transcription, then the tex
   const after = await getChatContext(broadcastId);
   expect(after.transcript?.text).toMatch(/^00:00 /);
   expect(after.headlines).toHaveLength(2);
+});
+
+it('ranks the matching chunk first across the library and attributes its broadcast', async () => {
+  await transcribe(broadcastId);
+  await embedTranscript(broadcastId);
+
+  const target = 'In other news, local election results are in.';
+  const hits = await searchLibrary(target, 5);
+  expect(hits[0].content).toBe(target);
+  expect(hits[0].similarity).toBeCloseTo(1, 5);
+  expect(hits.some(hit => hit.broadcastId === broadcastId)).toBe(true);
+});
+
+it('returns no hits for a blank query', async () => {
+  await transcribe(broadcastId);
+  await embedTranscript(broadcastId);
+  expect(await searchLibrary('   ')).toEqual([]);
+});
+
+it('maps only the requested broadcasts to their top headline', async () => {
+  await runFullPipeline();
+
+  const titles = await getTitles([broadcastId, 'unknown']);
+  expect(titles.get(broadcastId)).toBeTruthy();
+  expect(titles.has('unknown')).toBe(false);
+});
+
+it('returns an empty map for no ids', async () => {
+  expect(await getTitles([])).toEqual(new Map());
 });

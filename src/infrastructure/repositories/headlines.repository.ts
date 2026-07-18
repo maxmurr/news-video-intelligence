@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 
 import { db, Transaction } from '@/drizzle';
 import { headlines } from '@/drizzle/schema';
@@ -30,6 +30,26 @@ export class HeadlinesRepository implements IHeadlinesRepository {
         };
 
         return db.transaction(run);
+      } catch (err) {
+        this.crashReporterService.report(err);
+        throw err;
+      }
+    });
+  }
+
+  async getTopHeadlines(broadcastIds: string[]): Promise<{ broadcastId: string; headline: string }[]> {
+    return this.instrumentationService.startSpan({ name: 'HeadlinesRepository > getTopHeadlines' }, async () => {
+      if (broadcastIds.length === 0) return [];
+      try {
+        const query = db
+          .select({ broadcastId: headlines.broadcastId, headline: headlines.headline })
+          .from(headlines)
+          .where(and(inArray(headlines.broadcastId, broadcastIds), eq(headlines.idx, 0)));
+
+        return await this.instrumentationService.startSpan(
+          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'postgresql' } },
+          () => query.execute(),
+        );
       } catch (err) {
         this.crashReporterService.report(err);
         throw err;

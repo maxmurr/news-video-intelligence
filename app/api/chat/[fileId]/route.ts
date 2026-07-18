@@ -26,6 +26,7 @@ function broadcastSystemPrompt(transcript: string, storyList: string | null, tim
     '- If a topic appears more than once, mention each occurrence with its own timestamp.',
     '- Resolve follow-up questions against the earlier conversation (e.g. "where did it happen?" refers to the story just discussed).',
     '- Keep answers short: a few sentences, plain text. No markdown headings, bullets only when listing multiple stories.',
+    '- Reply in the same language the user wrote their question in, unless they ask for another language. Keep timestamp citations in [mm:ss] form regardless of language.',
     '',
     formatDateTimeContext(new Date(), timezone),
     '',

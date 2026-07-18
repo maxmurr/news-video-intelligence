@@ -11,8 +11,10 @@
  * survives the round-trip through the database.
  */
 import { relations } from 'drizzle-orm';
-import { index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { index, integer, pgTable, text, timestamp, uniqueIndex, vector } from 'drizzle-orm/pg-core';
 import { nanoid } from 'nanoid';
+
+import { EMBEDDING_DIMENSIONS } from '@/lib/models';
 
 const primaryId = () =>
   text('id')
@@ -106,6 +108,26 @@ export const frames = pgTable(
   ],
 );
 
+export const transcriptChunks = pgTable(
+  'transcript_chunks',
+  {
+    id: primaryId(),
+    broadcastId: broadcastId(),
+    idx: integer('idx').notNull(),
+    startTime: text('start_time').notNull(),
+    endTime: text('end_time').notNull(),
+    content: text('content').notNull(),
+    embedding: vector('embedding', { dimensions: EMBEDDING_DIMENSIONS }).notNull(),
+    tokenCount: integer('token_count').notNull(),
+    createdAt: createdAt(),
+  },
+  table => [
+    index('transcript_chunks_broadcast_idx').on(table.broadcastId),
+    uniqueIndex('transcript_chunks_broadcast_position').on(table.broadcastId, table.idx),
+    index('transcript_chunks_embedding_hnsw').using('hnsw', table.embedding.op('vector_cosine_ops')),
+  ],
+);
+
 export const runs = pgTable('runs', {
   id: primaryId(),
   broadcastId: broadcastId().unique(),
@@ -121,6 +143,11 @@ export const broadcastsRelations = relations(broadcasts, ({ one, many }) => ({
   stories: many(stories),
   headlines: many(headlines),
   frames: many(frames),
+  chunks: many(transcriptChunks),
+}));
+
+export const transcriptChunksRelations = relations(transcriptChunks, ({ one }) => ({
+  broadcast: one(broadcasts, { fields: [transcriptChunks.broadcastId], references: [broadcasts.id] }),
 }));
 
 export const transcriptsRelations = relations(transcripts, ({ one }) => ({

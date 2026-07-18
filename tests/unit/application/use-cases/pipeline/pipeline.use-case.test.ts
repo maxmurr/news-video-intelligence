@@ -5,6 +5,7 @@ import { NotFoundError } from '@/src/entities/errors/common';
 
 const createBroadcast = getInjection('ICreateBroadcastUseCase');
 const transcribe = getInjection('ITranscribeBroadcastUseCase');
+const embedTranscript = getInjection('IEmbedTranscriptUseCase');
 const detectStories = getInjection('IDetectStoriesUseCase');
 const generateHeadlines = getInjection('IGenerateHeadlinesUseCase');
 const extractFrames = getInjection('IExtractFramesUseCase');
@@ -19,6 +20,7 @@ beforeEach(async () => {
 
 it('throws NotFoundError when the broadcast row does not exist', async () => {
   await expect(transcribe('unknown.mp4')).rejects.toBeInstanceOf(NotFoundError);
+  await expect(embedTranscript('unknown.mp4')).rejects.toBeInstanceOf(NotFoundError);
   await expect(detectStories('unknown.mp4')).rejects.toBeInstanceOf(NotFoundError);
   await expect(generateHeadlines('unknown.mp4')).rejects.toBeInstanceOf(NotFoundError);
   await expect(extractFrames('unknown.mp4')).rejects.toBeInstanceOf(NotFoundError);
@@ -36,6 +38,25 @@ it('transcribes once and serves the stored transcript on the second call', async
 
 it('requires a transcript before detecting stories', async () => {
   await expect(detectStories(broadcastId)).rejects.toBeInstanceOf(NotFoundError);
+});
+
+it('requires a transcript before embedding', async () => {
+  await expect(embedTranscript(broadcastId)).rejects.toBeInstanceOf(NotFoundError);
+});
+
+it('chunks and embeds the transcript with positional idx, then caches', async () => {
+  await transcribe(broadcastId);
+
+  const fresh = await embedTranscript(broadcastId);
+  expect(fresh.cached).toBe(false);
+  expect(fresh.data.map(chunk => chunk.idx)).toEqual([0, 1, 2, 3]);
+  expect(fresh.data.map(chunk => chunk.startTime)).toEqual(['00:00', '02:30', '05:00', '07:30']);
+  // Content is stored timestamp-free; the span lives in start/end.
+  expect(fresh.data[0].content).toBe('Good evening, tonight wildfires spread across the state.');
+
+  const again = await embedTranscript(broadcastId);
+  expect(again.cached).toBe(true);
+  expect(again.data.map(chunk => chunk.id)).toEqual(fresh.data.map(chunk => chunk.id));
 });
 
 it('detects stories with positional idx and caches them', async () => {

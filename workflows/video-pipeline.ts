@@ -6,11 +6,13 @@ export async function runVideoPipeline(broadcastId: string) {
   'use workflow';
 
   const transcribe = await transcribeStep(broadcastId);
-  const stories = await storiesStep(broadcastId);
+  // Embedding needs only the transcript and feeds nothing downstream, so it
+  // overlaps story detection instead of adding serial latency.
+  const [embed, stories] = await Promise.all([embedStep(broadcastId), storiesStep(broadcastId)]);
   const headlines = await headlinesStep(broadcastId);
   const frames = await framesStep(broadcastId);
 
-  return { broadcastId, transcribe, stories, headlines, frames };
+  return { broadcastId, transcribe, embed, stories, headlines, frames };
 }
 
 /**
@@ -32,6 +34,13 @@ async function transcribeStep(broadcastId: string) {
 
   const { cached } = await guarded(() => getInjection('ITranscribeBroadcastController')(broadcastId));
   return { cached };
+}
+
+async function embedStep(broadcastId: string) {
+  'use step';
+
+  const { cached, count } = await guarded(() => getInjection('IEmbedTranscriptController')(broadcastId));
+  return { cached, count };
 }
 
 async function storiesStep(broadcastId: string) {
