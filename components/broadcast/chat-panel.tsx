@@ -12,7 +12,7 @@ import {
 import { Message, MessageContent } from '@/components/ai-elements/message';
 import { PromptInput, PromptInputSubmit, PromptInputTextarea } from '@/components/ai-elements/prompt-input';
 import { Suggestion, Suggestions } from '@/components/ai-elements/suggestion';
-import { Spinner } from '@/components/ui/spinner';
+import { browserTimeZone } from '@/lib/dates';
 import type { StoryCard } from '@/lib/broadcast-types';
 import { AnswerWithCitations } from './timestamp';
 
@@ -132,6 +132,8 @@ export function ChatPanel({
   transcriptReady,
   halted = false,
   activeStory = null,
+  initialPrompt = null,
+  onInitialPromptConsumed,
   onSeekAction,
 }: {
   fileId: string;
@@ -143,12 +145,22 @@ export function ChatPanel({
   halted?: boolean;
   /** Story covering the current playback / last seek — drives a contextual chip. */
   activeStory?: StoryCard | null;
+  /** Prompt handed off from Ask (`?ask=`) — submitted once the panel is ready. */
+  initialPrompt?: string | null;
+  /** Clear the handoff after the prompt is accepted (e.g. strip `?ask=` from the URL). */
+  onInitialPromptConsumed?: () => void;
   /** Jump the broadcast player to a cited moment. */
   onSeekAction: (seconds: number) => void;
 }) {
   const [input, setInput] = React.useState('');
+  /** Dedupes Ask → `/v/[id]?ask=` handoffs so the same prompt isn't submitted twice. */
+  const consumedAskRef = React.useRef<string | null>(null);
   const transport = React.useMemo(
-    () => new DefaultChatTransport({ api: `/api/chat/${encodeURIComponent(fileId)}` }),
+    () =>
+      new DefaultChatTransport({
+        api: `/api/chat/${encodeURIComponent(fileId)}`,
+        body: () => ({ timezone: browserTimeZone() }),
+      }),
     [fileId],
   );
   const { messages, setMessages, sendMessage, status, error } = useChat({ transport });
@@ -156,6 +168,7 @@ export function ChatPanel({
   // Restore the saved research trail once, then mirror settled messages back
   // to storage so a refresh or a trip to the library never loses citations.
   React.useEffect(() => {
+    consumedAskRef.current = null;
     const stored = readStoredMessages(fileId);
     if (stored) setMessages(stored);
   }, [fileId, setMessages]);
@@ -172,6 +185,26 @@ export function ChatPanel({
   const busy = status === 'submitted' || status === 'streaming';
   const isEmpty = messages.length === 0;
   const exportFilename = `broadcast-${filename.replace(/\.mp4$/i, '').split('-')[0]}-chat.md`;
+
+  // Handoff from Ask: wait a tick so history restore's setMessages commits first.
+  React.useEffect(() => {
+    const trimmed = initialPrompt?.trim() ?? '';
+    if (!trimmed || !transcriptReady || busy) return;
+    if (consumedAskRef.current === trimmed) return;
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (cancelled || consumedAskRef.current === trimmed) return;
+      consumedAskRef.current = trimmed;
+      onInitialPromptConsumed?.();
+      void sendMessage({ text: trimmed });
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [initialPrompt, transcriptReady, busy, sendMessage, onInitialPromptConsumed]);
 
   const submit = (text: string) => {
     const trimmed = text.trim();
@@ -203,10 +236,7 @@ export function ChatPanel({
             (halted ? (
               <span className="text-muted-foreground text-xs">Transcription paused</span>
             ) : (
-              <span className="shimmer text-muted-foreground flex items-center gap-1.5 text-xs">
-                <Spinner className="size-3" />
-                Transcribing…
-              </span>
+              <span className="shimmer text-muted-foreground text-xs">Transcribing…</span>
             ))}
           {!isEmpty && (
             <ConversationDownload
@@ -244,12 +274,7 @@ export function ChatPanel({
                 </MessageContent>
               </Message>
             ))}
-            {status === 'submitted' && (
-              <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                <Spinner className="size-3" />
-                Checking the footage…
-              </div>
-            )}
+            {status === 'submitted' && <p className="shimmer text-muted-foreground text-xs">Checking the footage…</p>}
             {error && (
               <p role="alert" className="text-destructive text-xs">
                 {error.message || 'Something went wrong. Try asking again.'}
@@ -261,10 +286,7 @@ export function ChatPanel({
       )}
 
       {isEmpty && status === 'submitted' && (
-        <div className="text-muted-foreground flex items-center gap-2 px-4 pb-2 text-xs">
-          <Spinner className="size-3" />
-          Checking the footage…
-        </div>
+        <p className="shimmer text-muted-foreground px-4 pb-2 text-xs">Checking the footage…</p>
       )}
       {isEmpty && error && (
         <p role="alert" className="text-destructive px-4 pb-2 text-xs">

@@ -8,10 +8,13 @@ import { Conversation, ConversationContent, ConversationScrollButton } from '@/c
 import { Message, MessageContent, MessageResponse } from '@/components/ai-elements/message';
 import { PromptInput, PromptInputSubmit, PromptInputTextarea } from '@/components/ai-elements/prompt-input';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
+import { browserTimeZone } from '@/lib/dates';
 import { cn } from '@/lib/utils';
 
-const transport = new DefaultChatTransport({ api: '/api/chat' });
+const transport = new DefaultChatTransport({
+  api: '/api/chat',
+  body: () => ({ timezone: browserTimeZone() }),
+});
 
 /**
  * Floating desk assistant bubble. General-purpose (not broadcast-grounded) —
@@ -100,12 +103,7 @@ export function HomeChat() {
                     </MessageContent>
                   </Message>
                 ))}
-                {status === 'submitted' && (
-                  <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                    <Spinner className="size-3" />
-                    Thinking…
-                  </div>
-                )}
+                {status === 'submitted' && <p className="shimmer text-muted-foreground text-xs">Thinking…</p>}
                 {error && (
                   <p role="alert" className="text-destructive text-xs">
                     {error.message || 'Something went wrong. Try asking again.'}
@@ -119,12 +117,7 @@ export function HomeChat() {
               <p className="text-muted-foreground text-sm text-pretty">
                 Ask about the desk, uploads, or how grounded Q&A works once a broadcast is ready.
               </p>
-              {status === 'submitted' && (
-                <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                  <Spinner className="size-3" />
-                  Thinking…
-                </div>
-              )}
+              {status === 'submitted' && <p className="shimmer text-muted-foreground text-xs">Thinking…</p>}
               {error && (
                 <p role="alert" className="text-destructive text-xs">
                   {error.message || 'Something went wrong. Try asking again.'}

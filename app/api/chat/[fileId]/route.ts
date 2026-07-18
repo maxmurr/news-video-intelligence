@@ -1,6 +1,7 @@
 import { getInjection } from '@/di/container';
 import { isValidBroadcastId } from '@/lib/artifacts';
 import { parseChatRequest, streamChatResponse } from '@/lib/chat-stream';
+import { formatDateTimeContext } from '@/lib/dates';
 import { formatStoryList, type HeadlineItem } from '@/lib/schemas';
 import { NotFoundError } from '@/src/entities/errors/common';
 
@@ -10,12 +11,12 @@ import { NotFoundError } from '@/src/entities/errors/common';
  * transcript timestamps so the client can turn each citation into a
  * jump-to-moment button on the video.
  */
-function broadcastSystemPrompt(transcript: string, storyList: string | null): string {
+function broadcastSystemPrompt(transcript: string, storyList: string | null, timezone: string): string {
   return [
     'You are a news assistant for one specific news broadcast. You are given its full timestamped transcript' +
       (storyList ? ' and the list of stories detected in it.' : '.'),
     '',
-    'Rules:',
+    '=== RULES ===',
     '- Answer using ONLY the transcript. Never use outside knowledge to add facts.',
     '- Cite the supporting moment for every factual claim as a timestamp in square brackets, e.g. [04:32],' +
       ' using timestamps that appear in the transcript. The user can click these to jump to that moment in the video.' +
@@ -25,6 +26,8 @@ function broadcastSystemPrompt(transcript: string, storyList: string | null): st
     '- If a topic appears more than once, mention each occurrence with its own timestamp.',
     '- Resolve follow-up questions against the earlier conversation (e.g. "where did it happen?" refers to the story just discussed).',
     '- Keep answers short: a few sentences, plain text. No markdown headings, bullets only when listing multiple stories.',
+    '',
+    formatDateTimeContext(new Date(), timezone),
     '',
     ...(storyList ? ['Detected stories:', storyList, ''] : []),
     'Full timestamped transcript:',
@@ -64,5 +67,5 @@ export async function POST(req: Request, ctx: RouteContext<'/api/chat/[fileId]'>
 
   const storyList = headlines.length > 0 ? formatStoryList(headlines, s => s.headline) : null;
 
-  return streamChatResponse(broadcastSystemPrompt(transcript, storyList), parsed);
+  return streamChatResponse(broadcastSystemPrompt(transcript, storyList, parsed.timezone), parsed.messages);
 }

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import * as React from 'react';
-import { parseAsStringLiteral, useQueryState } from 'nuqs';
+import { parseAsString, parseAsStringLiteral, useQueryState } from 'nuqs';
 import { toast } from 'sonner';
 import { ArrowLeft, ChevronUp, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -77,6 +77,10 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
   const [stalled, setStalled] = React.useState(false);
   const [retrying, setRetrying] = React.useState(false);
   const [tab, setTab] = useQueryState('tab', broadcastTabParser);
+  const [askPrompt, setAskPrompt] = useQueryState(
+    'ask',
+    parseAsString.withOptions({ history: 'replace', shallow: true }),
+  );
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const headerRef = React.useRef<HTMLElement | null>(null);
   const lastProgressKeyRef = React.useRef(stagesKey(initial.stages));
@@ -150,14 +154,27 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
     return () => clearInterval(interval);
   }, [processing, refreshBroadcast]);
 
+  const hasAskHandoff = Boolean(askPrompt?.trim());
+  const askDockOpen = askOpen || hasAskHandoff;
+
+  const closeAskDock = React.useCallback(() => {
+    setAskOpen(false);
+    void setAskPrompt(null);
+  }, [setAskPrompt]);
+
+  const clearAskPrompt = React.useCallback(() => {
+    setAskOpen(true);
+    void setAskPrompt(null);
+  }, [setAskPrompt]);
+
   React.useEffect(() => {
-    if (!askOpen) return;
+    if (!askDockOpen) return;
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setAskOpen(false);
+      if (event.key === 'Escape') closeAskDock();
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [askOpen]);
+  }, [askDockOpen, closeAskDock]);
 
   React.useEffect(() => {
     let attached: HTMLVideoElement | null = null;
@@ -268,7 +285,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
       className={cn(
         'mx-auto flex w-full max-w-7xl flex-col px-4 sm:px-6 lg:pb-0',
         // Closed Ask sheet peeks; open sheet needs a taller spacer so last rows stay reachable.
-        askOpen ? 'pb-[min(48dvh,26rem)] lg:pb-0' : 'pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0',
+        askDockOpen ? 'pb-[min(48dvh,26rem)] lg:pb-0' : 'pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0',
       )}
     >
       <p className="sr-only" aria-live="polite" aria-atomic="true">
@@ -313,12 +330,12 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
         </Button>
       </header>
 
-      {askOpen && (
+      {askDockOpen && (
         <button
           type="button"
           aria-label="Dismiss ask panel"
           className="fixed inset-0 z-30 bg-black/10 lg:hidden"
-          onClick={() => setAskOpen(false)}
+          onClick={closeAskDock}
         />
       )}
 
@@ -398,23 +415,26 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
             // Slide instead of resizing so the sheet animates on the compositor,
             // never re-laying-out the page. Closed leaves the 3.5rem toggle row peeking.
             'transition-transform duration-200 ease-out motion-reduce:transition-none',
-            askOpen ? 'translate-y-0' : 'translate-y-[calc(100%-3.5rem-env(safe-area-inset-bottom))]',
+            askDockOpen ? 'translate-y-0' : 'translate-y-[calc(100%-3.5rem-env(safe-area-inset-bottom))]',
             'lg:static lg:sticky lg:top-6 lg:z-auto lg:h-[calc(100dvh-6rem)] lg:translate-y-0 lg:rounded-xl lg:border lg:shadow-none',
           )}
         >
           <button
             type="button"
             className="focus-visible:ring-ring/50 flex min-h-14 w-full shrink-0 items-center justify-between gap-3 px-4 py-3 text-left focus-visible:ring-3 focus-visible:outline-none lg:hidden"
-            aria-expanded={askOpen}
+            aria-expanded={askDockOpen}
             aria-controls="broadcast-ask-panel"
-            onClick={() => setAskOpen(open => !open)}
+            onClick={() => {
+              if (askDockOpen) closeAskDock();
+              else setAskOpen(true);
+            }}
           >
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className="text-sm font-medium">Ask the broadcast</span>
               <span className="text-muted-foreground text-xs">
                 {!transcriptReady
                   ? 'Unlocks after transcription'
-                  : askOpen
+                  : askDockOpen
                     ? 'Ask, then jump to the cited moment'
                     : 'Tap to ask and verify'}
               </span>
@@ -423,12 +443,12 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
               aria-hidden
               className={cn(
                 'text-muted-foreground size-5 shrink-0 transition-transform duration-200 ease-out motion-reduce:transition-none',
-                !askOpen && 'rotate-180',
+                !askDockOpen && 'rotate-180',
               )}
             />
           </button>
 
-          {askOpen && activeStory && (
+          {askDockOpen && activeStory && (
             <div className="border-b px-4 py-2 lg:hidden" role="status" aria-live="polite" aria-atomic="true">
               <p className="truncate text-xs">
                 <span className="font-medium">Now playing</span>
@@ -452,7 +472,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
 
           <div
             id="broadcast-ask-panel"
-            className={cn('min-h-0 flex-1 flex-col', askOpen ? 'flex' : 'hidden', 'lg:flex')}
+            className={cn('min-h-0 flex-1 flex-col', askDockOpen ? 'flex' : 'hidden', 'lg:flex')}
           >
             <ChatPanel
               fileId={broadcast.id}
@@ -461,6 +481,8 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
               transcriptReady={transcriptReady}
               halted={concern !== null}
               activeStory={activeStory}
+              initialPrompt={askPrompt}
+              onInitialPromptConsumed={clearAskPrompt}
               onSeekAction={seekTo}
             />
           </div>

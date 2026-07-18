@@ -1,4 +1,5 @@
 import { parseChatRequest, streamChatResponse } from '@/lib/chat-stream';
+import { formatDateTimeContext } from '@/lib/dates';
 
 /**
  * General-purpose assistant with no broadcast grounding. Broadcast-scoped
@@ -14,5 +15,6 @@ export async function POST(req: Request) {
   const parsed = await parseChatRequest(req);
   if (parsed instanceof Response) return parsed;
 
-  return streamChatResponse(GENERAL_SYSTEM_PROMPT, parsed);
+  const system = `${GENERAL_SYSTEM_PROMPT}\n\n${formatDateTimeContext(new Date(), parsed.timezone)}`;
+  return streamChatResponse(system, parsed.messages);
 }

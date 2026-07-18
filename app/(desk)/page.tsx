@@ -16,7 +16,6 @@ async function DeskHome() {
   return (
     <>
       <header className="flex flex-col gap-1.5 border-b pb-4">
-        <p className="text-muted-foreground text-xs font-medium">Broadcast Desk</p>
         <h1 className="font-heading max-w-2xl text-2xl leading-[1.1] font-semibold tracking-tight text-balance sm:text-3xl">
           Ask the broadcast. Jump to the proof.
         </h1>
@@ -63,7 +62,6 @@ function DeskHomeSkeleton() {
   return (
     <>
       <header className="flex flex-col gap-1.5 border-b pb-4">
-        <Skeleton className="h-3 w-24" />
         <Skeleton className="h-8 w-80 max-w-full" />
       </header>
       <Skeleton className="h-10 w-full rounded-lg" />
@@ -96,11 +94,9 @@ function DeskHomeSkeleton() {
 export default function Home() {
   return (
     <>
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6">
-        <Suspense fallback={<DeskHomeSkeleton />}>
-          <DeskHome />
-        </Suspense>
-      </main>
+      <Suspense fallback={<DeskHomeSkeleton />}>
+        <DeskHome />
+      </Suspense>
       <Suspense fallback={null}>
         <HomeChat />
       </Suspense>
