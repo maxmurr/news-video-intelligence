@@ -15,6 +15,7 @@ export class RerankService implements IRerankService {
         query,
         documents,
         topN,
+        telemetry: { functionId: 'rerank-candidates' },
       });
       return ranking.map(({ originalIndex, score }) => ({ index: originalIndex, score }));
     });

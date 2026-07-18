@@ -104,6 +104,7 @@ export async function streamChatResponse(
     model: MODELS.chat,
     system,
     messages: await convertToModelMessages(messages),
+    telemetry: { functionId: 'chat-response' },
     experimental_transform: smoothStream({
       delayInMs: 20,
       chunking: 'word',

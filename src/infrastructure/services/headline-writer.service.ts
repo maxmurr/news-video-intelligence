@@ -35,6 +35,7 @@ export class HeadlineWriterService implements IHeadlineWriterService {
 
         const result = await generateText({
           model: MODELS.headlines,
+          telemetry: { functionId: 'write-headlines' },
           output: Output.object({ schema: headlinesSchema }),
           system:
             'You are a news editor. You write headlines and summaries for segments of a news video. ' +

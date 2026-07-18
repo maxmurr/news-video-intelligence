@@ -13,6 +13,7 @@ export class TranscriptionService implements ITranscriptionService {
       async () => {
         const result = await generateText({
           model: MODELS.transcribe,
+          telemetry: { functionId: 'transcribe-audio', recordInputs: false },
           system:
             'You are a transcription engine. You output verbatim transcripts and nothing else. ' +
             'Never add introductions, headers, or commentary. Your response must start directly with the first timestamp.',

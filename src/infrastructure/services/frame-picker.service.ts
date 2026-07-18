@@ -61,6 +61,7 @@ export class FramePickerService implements IFramePickerService {
 
         const result = await generateText({
           model: MODELS.frames,
+          telemetry: { functionId: 'pick-frames', recordInputs: false },
           output: Output.object({ schema: framePicksSchema }),
           system:
             'You are a news video picture editor. For each story you are given, watch the video and pick the ' +

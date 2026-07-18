@@ -1,4 +1,8 @@
+import { observe, updateActiveObservation } from '@langfuse/tracing';
+import { after } from 'next/server';
+
 import { getInjection } from '@/di/container';
+import { langfuseSpanProcessor } from '@/instrumentation.langfuse';
 import { latestUserText, parseChatRequest, streamChatResponse, type ChatSource } from '@/lib/chat-stream';
 import { formatDateTimeContext } from '@/lib/dates';
 
@@ -48,7 +52,7 @@ async function broadcastTitles(broadcastIds: string[]): Promise<Map<string, stri
   return titles;
 }
 
-export async function POST(req: Request) {
+async function handleChat(req: Request): Promise<Response> {
   const parsed = await parseChatRequest(req);
   if (parsed instanceof Response) return parsed;
 
@@ -59,6 +63,11 @@ export async function POST(req: Request) {
   // no context, and the grounded prompt makes it say the library does not cover
   // the question rather than answering from outside knowledge.
   const query = latestUserText(parsed.messages);
+
+  // Trace input is the user's question, not the assembled grounding prompt —
+  // that keeps the trace readable and puts the library dump in the generation.
+  updateActiveObservation({ input: query });
+
   let grounded = false;
   const sources: ChatSource[] = [];
   if (query) {
@@ -87,6 +96,19 @@ export async function POST(req: Request) {
   }
   if (!grounded) sections.push('', NO_LIBRARY_CONTEXT);
 
+  updateActiveObservation({ metadata: { grounded, sourceCount: sources.length } });
+
   sections.push('', formatDateTimeContext(new Date(), parsed.timezone));
+
+  // Serverless: force the isolated Langfuse provider to flush after the response
+  // finishes streaming, before the invocation freezes and drops queued spans.
+  after(() => langfuseSpanProcessor.forceFlush());
+
   return streamChatResponse(sections.join('\n'), parsed.messages, sources);
 }
+
+export const POST = observe(handleChat, {
+  name: 'desk-assistant-chat',
+  captureInput: false,
+  captureOutput: false,
+});

@@ -19,6 +19,7 @@ export class EmbeddingService implements IEmbeddingService {
         const { embeddings } = await embedMany({
           model: MODELS.embed,
           values: texts,
+          telemetry: { functionId: 'embed-documents' },
           providerOptions: { cohere: { inputType: 'search_document' } },
         });
         return embeddings;
@@ -34,6 +35,7 @@ export class EmbeddingService implements IEmbeddingService {
       const { embedding } = await embed({
         model: MODELS.embed,
         value: text,
+        telemetry: { functionId: 'embed-query' },
         providerOptions: { cohere: { inputType: 'search_query' } },
       });
       return embedding;

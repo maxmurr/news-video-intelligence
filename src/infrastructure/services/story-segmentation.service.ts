@@ -15,6 +15,7 @@ export class StorySegmentationService implements IStorySegmentationService {
       async () => {
         const result = await generateText({
           model: MODELS.stories,
+          telemetry: { functionId: 'segment-stories' },
           output: Output.object({ schema: storiesOutputSchema }),
           system:
             'You are a news video segmentation engine. You split news transcripts into distinct stories. ' +
