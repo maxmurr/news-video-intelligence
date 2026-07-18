@@ -29,11 +29,12 @@ function hitTargetClassName(className?: string) {
 
 export function AssistantMessageActions({
   text,
-  sourceCount,
+  sourceCount = 0,
   className,
 }: {
   text: string;
-  sourceCount: number;
+  /** Unique grounded broadcasts; omit or pass 0 to hide the sources badge. */
+  sourceCount?: number;
   className?: string;
 }) {
   const [copied, setCopied] = React.useState(false);

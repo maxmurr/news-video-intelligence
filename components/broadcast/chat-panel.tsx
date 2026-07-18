@@ -12,6 +12,8 @@ import {
 import { Message, MessageContent } from '@/components/ai-elements/message';
 import { PromptInput, PromptInputSubmit, PromptInputTextarea } from '@/components/ai-elements/prompt-input';
 import { Suggestion, Suggestions } from '@/components/ai-elements/suggestion';
+import { AssistantMessageActions, assistantMessageText } from '@/components/chat/assistant-message-actions';
+import { shouldShowLoadingShimmer } from '@/lib/chat-stream';
 import { browserTimeZone } from '@/lib/dates';
 import type { StoryCard } from '@/lib/broadcast-types';
 import { AnswerWithCitations } from './timestamp';
@@ -183,6 +185,7 @@ export function ChatPanel({
   }, [status, messages, fileId]);
 
   const busy = status === 'submitted' || status === 'streaming';
+  const showLoadingShimmer = shouldShowLoadingShimmer(status, messages);
   const isEmpty = messages.length === 0;
   const exportFilename = `broadcast-${filename.replace(/\.mp4$/i, '').split('-')[0]}-chat.md`;
 
@@ -257,24 +260,33 @@ export function ChatPanel({
       ) : (
         <Conversation className="min-h-0 flex-1">
           <ConversationContent className="gap-4 px-4 py-4">
-            {messages.map(message => (
-              <Message from={message.role} key={message.id}>
-                <MessageContent>
-                  {message.parts.map((part, i) =>
-                    part.type === 'text' ? (
-                      <div key={`${message.id}-${i}`} className="text-sm leading-normal">
-                        {message.role === 'assistant' ? (
-                          <AnswerWithCitations text={part.text} onSeekAction={onSeekAction} />
-                        ) : (
-                          <span className="whitespace-pre-wrap">{part.text}</span>
-                        )}
-                      </div>
-                    ) : null,
-                  )}
-                </MessageContent>
-              </Message>
-            ))}
-            {status === 'submitted' && <p className="shimmer text-muted-foreground text-xs">Checking the footage…</p>}
+            {messages.map((message, messageIndex) => {
+              const isLast = messageIndex === messages.length - 1;
+              const isStreamingAssistant = message.role === 'assistant' && busy && isLast;
+              const responseText = message.role === 'assistant' ? assistantMessageText(message.parts) : '';
+
+              return (
+                <Message from={message.role} key={message.id}>
+                  <MessageContent>
+                    {message.parts.map((part, i) =>
+                      part.type === 'text' ? (
+                        <div key={`${message.id}-${i}`} className="text-sm leading-normal">
+                          {message.role === 'assistant' ? (
+                            <AnswerWithCitations text={part.text} onSeekAction={onSeekAction} />
+                          ) : (
+                            <span className="whitespace-pre-wrap">{part.text}</span>
+                          )}
+                        </div>
+                      ) : null,
+                    )}
+                  </MessageContent>
+                  {message.role === 'assistant' && !isStreamingAssistant && responseText ? (
+                    <AssistantMessageActions text={responseText} />
+                  ) : null}
+                </Message>
+              );
+            })}
+            {showLoadingShimmer ? <p className="shimmer text-muted-foreground text-xs">Checking the footage…</p> : null}
             {error && (
               <p role="alert" className="text-destructive text-xs">
                 {error.message || 'Something went wrong. Try asking again.'}
@@ -285,9 +297,9 @@ export function ChatPanel({
         </Conversation>
       )}
 
-      {isEmpty && status === 'submitted' && (
+      {isEmpty && showLoadingShimmer ? (
         <p className="shimmer text-muted-foreground px-4 pb-2 text-xs">Checking the footage…</p>
-      )}
+      ) : null}
       {isEmpty && error && (
         <p role="alert" className="text-destructive px-4 pb-2 text-xs">
           {error.message || 'Something went wrong. Try asking again.'}

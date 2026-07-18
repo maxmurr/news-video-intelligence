@@ -5,6 +5,7 @@ import {
   smoothStream,
   streamText,
   toUIMessageStream,
+  type ChatStatus,
   type UIMessage,
   validateUIMessages,
 } from 'ai';
@@ -60,6 +61,35 @@ export function latestUserText(messages: UIMessage[]): string {
       .trim();
   }
   return '';
+}
+
+function findLast<T>(items: readonly T[], predicate: (item: T) => boolean): T | undefined {
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (predicate(items[i])) return items[i];
+  }
+  return undefined;
+}
+
+/**
+ * Whether the chat UI should show a "thinking / checking" shimmer.
+ * True while the request is submitted, and while streaming until the latest
+ * assistant message has any text or reasoning content.
+ */
+export function shouldShowLoadingShimmer(status: ChatStatus, messages: UIMessage[]): boolean {
+  if (status === 'submitted') return true;
+
+  if (status === 'streaming') {
+    const lastAssistant = findLast(messages, message => message.role === 'assistant');
+    if (!lastAssistant) return true;
+
+    const hasContent = lastAssistant.parts.some(
+      part => (part.type === 'text' || part.type === 'reasoning') && part.text.length > 0,
+    );
+
+    return !hasContent;
+  }
+
+  return false;
 }
 
 const STREAM_ERROR = 'The assistant hit an error answering. Try asking again.';

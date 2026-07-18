@@ -23,6 +23,7 @@ import {
   countMessageSources,
 } from '@/components/chat/assistant-message-actions';
 import { Button } from '@/components/ui/button';
+import { shouldShowLoadingShimmer } from '@/lib/chat-stream';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -329,7 +330,9 @@ export function ChatEmptyState({ broadcasts }: { broadcasts: BroadcastSummary[] 
                 </Message>
               );
             })}
-            {status === 'submitted' ? <p className="shimmer text-muted-foreground text-xs">Thinking…</p> : null}
+            {shouldShowLoadingShimmer(status, messages) ? (
+              <p className="shimmer text-muted-foreground text-xs">Thinking…</p>
+            ) : null}
             {error ? (
               <p role="alert" className="text-destructive text-xs text-pretty">
                 {error.message || 'Something went wrong. Try asking again.'}
