@@ -1,18 +1,18 @@
 services:
   postgres:
-    image: postgres:latest
+    image: postgres:18
     container_name: inv-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - '5432:5432'
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-news_intelligence}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,24 +28,24 @@ services:
       volume-permission-helper:
         condition: service_completed_successfully
     ports:
-      - "9000:9000" # S3 API
-      - "9001:9001" # Console
+      - '9000:9000' # S3 API
+      - '9001:9001' # Console
     environment:
       RUSTFS_VOLUMES: /data
       RUSTFS_ADDRESS: 0.0.0.0:9000
       RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
-      RUSTFS_CONSOLE_ENABLE: "true"
-      RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS: "*"
+      RUSTFS_CONSOLE_ENABLE: 'true'
+      RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS: '*'
       RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-rustfsadmin}
       RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-rustfsadmin}
       RUSTFS_OBS_LOGGER_LEVEL: info
       # Local/dev only — skip strict multi-disk topology checks for SNSD.
-      RUSTFS_UNSAFE_BYPASS_DISK_CHECK: "true"
+      RUSTFS_UNSAFE_BYPASS_DISK_CHECK: 'true'
     volumes:
       - rustfs_data:/data
       - rustfs_logs:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/health"]
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:9000/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -63,7 +63,7 @@ services:
       sh -c "chown -R 10001:10001 /data /logs &&
       echo 'Volume permissions fixed' &&
       exit 0"
-    restart: "no"
+    restart: 'no'
     networks:
       - inv-network
 
