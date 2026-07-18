@@ -2,6 +2,7 @@ import { FileSearch } from 'lucide-react';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { BroadcastLibrary } from '@/components/broadcast/broadcast-library';
+import { HomeChat } from '@/components/broadcast/home-chat';
 import { UploadDropzone } from '@/components/broadcast/upload-dropzone';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -94,10 +95,13 @@ function DeskHomeSkeleton() {
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6">
-      <Suspense fallback={<DeskHomeSkeleton />}>
-        <DeskHome />
-      </Suspense>
-    </main>
+    <>
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6">
+        <Suspense fallback={<DeskHomeSkeleton />}>
+          <DeskHome />
+        </Suspense>
+      </main>
+      <HomeChat />
+    </>
   );
 }
