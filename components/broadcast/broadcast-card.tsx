@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Spinner } from '@/components/ui/spinner';
 import { PIPELINE_STAGES, type BroadcastSummary, type PipelineStage } from '@/lib/broadcast-types';
+import { DeleteBroadcastButton } from './delete-broadcast-button';
 import { useLocalDateLabel } from './use-local-date-label';
 
 const STAGE_LABELS: Record<PipelineStage, string> = {
@@ -44,10 +45,13 @@ function cardTitle(broadcast: BroadcastSummary): string {
 export function BroadcastCard({
   broadcast,
   timeOnly = false,
+  onDeletedAction,
 }: {
   broadcast: BroadcastSummary;
   /** When day headers already show the date, rows only need the clock time. */
   timeOnly?: boolean;
+  /** Client callback after a successful delete (optimistic library update). */
+  onDeletedAction?: () => void;
 }) {
   const statusLabel = stageStatusLabel(broadcast);
   const title = cardTitle(broadcast);
@@ -56,12 +60,15 @@ export function BroadcastCard({
   const ariaLabel = `${title}. File ${fileId}. Uploaded ${uploadedLabel}. ${statusLabel}.`;
 
   return (
-    <Link
-      href={`/v/${broadcast.filename}`}
-      aria-label={ariaLabel}
-      className="bg-card hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-ring/50 grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-2 transition-colors duration-150 ease-out focus-visible:ring-3 focus-visible:outline-none sm:grid-cols-[8rem_minmax(0,1fr)_10rem] sm:gap-4"
-    >
-      <div className="bg-muted relative col-start-1 aspect-video w-full overflow-hidden rounded-md">
+    <div className="group bg-card hover:bg-muted/40 relative grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-2 transition-colors duration-150 ease-out sm:grid-cols-[8rem_minmax(0,1fr)_10rem] sm:gap-4">
+      {/* Stretched overlay: the whole row navigates, so the delete button can sit
+          beside it as a sibling instead of nesting interactive-in-interactive. */}
+      <Link
+        href={`/v/${broadcast.filename}`}
+        aria-label={ariaLabel}
+        className="focus-visible:border-ring focus-visible:ring-ring/50 absolute inset-0 z-0 rounded-lg focus-visible:ring-3 focus-visible:outline-none"
+      />
+      <div className="bg-muted pointer-events-none relative z-10 col-start-1 aspect-video w-full overflow-hidden rounded-md">
         {broadcast.thumbnailUrl ? (
           <Image src={broadcast.thumbnailUrl} alt="" fill sizes="128px" className="object-cover" />
         ) : (
@@ -70,7 +77,7 @@ export function BroadcastCard({
           </div>
         )}
       </div>
-      <div className="col-start-2 flex min-w-0 flex-col gap-1">
+      <div className="pointer-events-none relative z-10 col-start-2 flex min-w-0 flex-col gap-1">
         <span className="line-clamp-2 text-sm font-medium text-pretty wrap-break-word" title={title} aria-hidden>
           {title}
         </span>
@@ -83,9 +90,17 @@ export function BroadcastCard({
           </time>
         </div>
       </div>
-      <span className="text-muted-foreground col-start-3 text-right text-xs whitespace-nowrap" aria-hidden>
-        {statusLabel}
-      </span>
-    </Link>
+      <div className="pointer-events-none relative z-10 col-start-3 flex items-center justify-end gap-1">
+        <span className="text-muted-foreground text-right text-xs whitespace-nowrap" aria-hidden>
+          {statusLabel}
+        </span>
+        <DeleteBroadcastButton
+          filename={broadcast.filename}
+          title={title}
+          onDeletedAction={onDeletedAction}
+          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 pointer-events-auto opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
+        />
+      </div>
+    </div>
   );
 }

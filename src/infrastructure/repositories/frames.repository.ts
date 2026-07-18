@@ -13,7 +13,7 @@ export class FramesRepository implements IFramesRepository {
     private readonly crashReporterService: ICrashReporterService,
   ) {}
 
-  async replaceFrames(broadcastId: string, items: FrameInsert[], tx?: Transaction): Promise<Frame[]> {
+  async replaceFrames(broadcastId: string, items: FrameInsert[]): Promise<Frame[]> {
     return this.instrumentationService.startSpan({ name: 'FramesRepository > replaceFrames' }, async () => {
       try {
         const run = async (invoker: Transaction): Promise<Frame[]> => {
@@ -29,7 +29,7 @@ export class FramesRepository implements IFramesRepository {
           );
         };
 
-        return tx ? run(tx) : db.transaction(run);
+        return db.transaction(run);
       } catch (err) {
         this.crashReporterService.report(err);
         throw err;
@@ -46,24 +46,6 @@ export class FramesRepository implements IFramesRepository {
         });
 
         return await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
-          () => query.execute(),
-        );
-      } catch (err) {
-        this.crashReporterService.report(err);
-        throw err;
-      }
-    });
-  }
-
-  async deleteFrames(broadcastId: string, tx?: Transaction): Promise<void> {
-    const invoker = tx ?? db;
-
-    await this.instrumentationService.startSpan({ name: 'FramesRepository > deleteFrames' }, async () => {
-      try {
-        const query = invoker.delete(frames).where(eq(frames.broadcastId, broadcastId));
-
-        await this.instrumentationService.startSpan(
           { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
           () => query.execute(),
         );

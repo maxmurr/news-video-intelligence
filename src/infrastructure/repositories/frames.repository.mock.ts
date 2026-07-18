@@ -21,8 +21,4 @@ export class MockFramesRepository implements IFramesRepository {
   async getFrames(broadcastId: string): Promise<Frame[]> {
     return this.frames.filter(frame => frame.broadcastId === broadcastId).sort((a, b) => a.idx - b.idx);
   }
-
-  async deleteFrames(broadcastId: string): Promise<void> {
-    this.frames = this.frames.filter(frame => frame.broadcastId !== broadcastId);
-  }
 }

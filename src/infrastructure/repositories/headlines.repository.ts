@@ -13,7 +13,7 @@ export class HeadlinesRepository implements IHeadlinesRepository {
     private readonly crashReporterService: ICrashReporterService,
   ) {}
 
-  async replaceHeadlines(broadcastId: string, items: HeadlineInsert[], tx?: Transaction): Promise<Headline[]> {
+  async replaceHeadlines(broadcastId: string, items: HeadlineInsert[]): Promise<Headline[]> {
     return this.instrumentationService.startSpan({ name: 'HeadlinesRepository > replaceHeadlines' }, async () => {
       try {
         const run = async (invoker: Transaction): Promise<Headline[]> => {
@@ -29,7 +29,7 @@ export class HeadlinesRepository implements IHeadlinesRepository {
           );
         };
 
-        return tx ? run(tx) : db.transaction(run);
+        return db.transaction(run);
       } catch (err) {
         this.crashReporterService.report(err);
         throw err;
@@ -46,24 +46,6 @@ export class HeadlinesRepository implements IHeadlinesRepository {
         });
 
         return await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
-          () => query.execute(),
-        );
-      } catch (err) {
-        this.crashReporterService.report(err);
-        throw err;
-      }
-    });
-  }
-
-  async deleteHeadlines(broadcastId: string, tx?: Transaction): Promise<void> {
-    const invoker = tx ?? db;
-
-    await this.instrumentationService.startSpan({ name: 'HeadlinesRepository > deleteHeadlines' }, async () => {
-      try {
-        const query = invoker.delete(headlines).where(eq(headlines.broadcastId, broadcastId));
-
-        await this.instrumentationService.startSpan(
           { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
           () => query.execute(),
         );

@@ -13,7 +13,7 @@ export class StoriesRepository implements IStoriesRepository {
     private readonly crashReporterService: ICrashReporterService,
   ) {}
 
-  async replaceStories(broadcastId: string, items: StoryInsert[], tx?: Transaction): Promise<Story[]> {
+  async replaceStories(broadcastId: string, items: StoryInsert[]): Promise<Story[]> {
     return this.instrumentationService.startSpan({ name: 'StoriesRepository > replaceStories' }, async () => {
       try {
         const run = async (invoker: Transaction): Promise<Story[]> => {
@@ -29,7 +29,7 @@ export class StoriesRepository implements IStoriesRepository {
           );
         };
 
-        return tx ? run(tx) : db.transaction(run);
+        return db.transaction(run);
       } catch (err) {
         this.crashReporterService.report(err);
         throw err;
@@ -46,24 +46,6 @@ export class StoriesRepository implements IStoriesRepository {
         });
 
         return await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
-          () => query.execute(),
-        );
-      } catch (err) {
-        this.crashReporterService.report(err);
-        throw err;
-      }
-    });
-  }
-
-  async deleteStories(broadcastId: string, tx?: Transaction): Promise<void> {
-    const invoker = tx ?? db;
-
-    await this.instrumentationService.startSpan({ name: 'StoriesRepository > deleteStories' }, async () => {
-      try {
-        const query = invoker.delete(stories).where(eq(stories.broadcastId, broadcastId));
-
-        await this.instrumentationService.startSpan(
           { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
           () => query.execute(),
         );

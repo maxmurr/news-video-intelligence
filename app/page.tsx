@@ -5,11 +5,11 @@ import { BroadcastLibrary } from '@/components/broadcast/broadcast-library';
 import { UploadDropzone } from '@/components/broadcast/upload-dropzone';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
-import { listBroadcasts } from '@/lib/broadcasts';
+import { getInjection } from '@/di/container';
 
 async function DeskHome() {
   await connection();
-  const broadcasts = await listBroadcasts();
+  const broadcasts = await getInjection('IGetBroadcastSummariesController')();
   const hasLibrary = broadcasts.length > 0;
 
   return (

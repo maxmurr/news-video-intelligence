@@ -1,6 +1,6 @@
 import { desc, eq } from 'drizzle-orm';
 
-import { db, Transaction } from '@/drizzle';
+import { db } from '@/drizzle';
 import { broadcasts } from '@/drizzle/schema';
 import type { IBroadcastsRepository } from '@/src/application/repositories/broadcasts.repository.interface';
 import type { ICrashReporterService } from '@/src/application/services/crash-reporter.service.interface';
@@ -14,12 +14,10 @@ export class BroadcastsRepository implements IBroadcastsRepository {
     private readonly crashReporterService: ICrashReporterService,
   ) {}
 
-  async createBroadcast(broadcast: BroadcastInsert, tx?: Transaction): Promise<Broadcast> {
-    const invoker = tx ?? db;
-
+  async createBroadcast(broadcast: BroadcastInsert): Promise<Broadcast> {
     return this.instrumentationService.startSpan({ name: 'BroadcastsRepository > createBroadcast' }, async () => {
       try {
-        const query = invoker.insert(broadcasts).values(broadcast).returning();
+        const query = db.insert(broadcasts).values(broadcast).returning();
 
         const [created] = await this.instrumentationService.startSpan(
           { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
@@ -86,12 +84,10 @@ export class BroadcastsRepository implements IBroadcastsRepository {
     });
   }
 
-  async deleteBroadcast(id: string, tx?: Transaction): Promise<void> {
-    const invoker = tx ?? db;
-
+  async deleteBroadcast(id: string): Promise<void> {
     await this.instrumentationService.startSpan({ name: 'BroadcastsRepository > deleteBroadcast' }, async () => {
       try {
-        const query = invoker.delete(broadcasts).where(eq(broadcasts.id, id)).returning();
+        const query = db.delete(broadcasts).where(eq(broadcasts.id, id)).returning();
 
         const [deleted] = await this.instrumentationService.startSpan(
           { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },

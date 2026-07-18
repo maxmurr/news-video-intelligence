@@ -25,8 +25,4 @@ export class MockTranscriptsRepository implements ITranscriptsRepository {
   async getTranscript(broadcastId: string): Promise<Transcript | undefined> {
     return this.transcripts.find(item => item.broadcastId === broadcastId);
   }
-
-  async deleteTranscript(broadcastId: string): Promise<void> {
-    this.transcripts = this.transcripts.filter(item => item.broadcastId !== broadcastId);
-  }
 }

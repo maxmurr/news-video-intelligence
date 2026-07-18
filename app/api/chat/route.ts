@@ -10,7 +10,7 @@ import {
 import { getInjection } from '@/di/container';
 import { isValidUploadFilename } from '@/lib/artifacts';
 import { MODELS } from '@/lib/models';
-import { formatStoryList } from '@/lib/pipeline';
+import { formatStoryList } from '@/lib/schemas';
 import { NotFoundError } from '@/src/entities/errors/common';
 
 /**
@@ -61,9 +61,10 @@ export async function POST(req: Request) {
     return new Response('Invalid message history.', { status: 400 });
   }
 
-  let broadcastId: string;
+  let transcript: string | null;
+  let headlines: { startTime: string; endTime: string; headline: string; summary: string }[];
   try {
-    ({ id: broadcastId } = await getInjection('IGetBroadcastByFilenameController')(filename));
+    ({ transcript, headlines } = await getInjection('IGetChatContextController')(filename));
   } catch (error) {
     if (error instanceof NotFoundError) {
       return new Response(`File not found: ${filename}`, { status: 404 });
@@ -71,10 +72,6 @@ export async function POST(req: Request) {
     throw error;
   }
 
-  const [transcript, headlines] = await Promise.all([
-    getInjection('IGetTranscriptController')(broadcastId),
-    getInjection('IGetHeadlinesController')(broadcastId),
-  ]);
   if (transcript === null) {
     return new Response('This broadcast is still being transcribed. Try again shortly.', { status: 409 });
   }
@@ -83,7 +80,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: MODELS.chat,
-    system: broadcastSystemPrompt(transcript.text, storyList),
+    system: broadcastSystemPrompt(transcript, storyList),
     messages: await convertToModelMessages(messages),
     experimental_transform: smoothStream({
       delayInMs: 20,

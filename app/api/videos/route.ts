@@ -2,8 +2,8 @@ import { start } from 'workflow/api';
 import { getInjection } from '@/di/container';
 import { guardUploadStream, isValidUploadFilename, UploadInvalidError, UploadTooLargeError } from '@/lib/artifacts';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/broadcast-types';
-import { getBroadcast, listBroadcasts } from '@/lib/broadcasts';
 import { unwrapFilesError, uploads } from '@/lib/files';
+import { NotFoundError } from '@/src/entities/errors/common';
 import { runVideoPipeline } from '@/workflows/video-pipeline';
 import { randomUUID } from 'node:crypto';
 
@@ -11,14 +11,14 @@ export async function GET(req: Request) {
   const filename = new URL(req.url).searchParams.get('filename');
 
   if (filename === null) {
-    return Response.json({ broadcasts: await listBroadcasts() });
+    return Response.json({ broadcasts: await getInjection('IGetBroadcastSummariesController')() });
   }
 
   if (!isValidUploadFilename(filename)) {
     return Response.json({ error: 'Invalid filename. Expected a .mp4 file in uploads.' }, { status: 400 });
   }
 
-  const broadcast = await getBroadcast(filename);
+  const broadcast = await getInjection('IGetBroadcastDetailController')(filename);
   if (broadcast === null) {
     return Response.json({ error: `File not found: ${filename}` }, { status: 404 });
   }
@@ -86,4 +86,28 @@ export async function POST(req: Request) {
   }
 
   return Response.json({ filename, url, size, runId }, { status: 201 });
+}
+
+/**
+ * Removes a broadcast and everything derived from it: the row (child stages
+ * cascade in SQLite) plus the uploaded video and extracted frames on disk.
+ */
+export async function DELETE(req: Request) {
+  const filename = new URL(req.url).searchParams.get('filename');
+
+  if (!isValidUploadFilename(filename)) {
+    return Response.json({ error: 'Invalid filename. Expected a .mp4 file in uploads.' }, { status: 400 });
+  }
+
+  try {
+    const broadcast = await getInjection('IGetBroadcastByFilenameController')(filename);
+    await getInjection('IDeleteBroadcastController')(broadcast.id);
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return Response.json({ error: `File not found: ${filename}` }, { status: 404 });
+    }
+    throw error;
+  }
+
+  return Response.json({ filename });
 }

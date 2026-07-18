@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 
-import { db, Transaction } from '@/drizzle';
+import { db } from '@/drizzle';
 import { transcripts } from '@/drizzle/schema';
 import type { ITranscriptsRepository } from '@/src/application/repositories/transcripts.repository.interface';
 import type { ICrashReporterService } from '@/src/application/services/crash-reporter.service.interface';
@@ -14,12 +14,10 @@ export class TranscriptsRepository implements ITranscriptsRepository {
     private readonly crashReporterService: ICrashReporterService,
   ) {}
 
-  async saveTranscript(transcript: TranscriptInsert, tx?: Transaction): Promise<Transcript> {
-    const invoker = tx ?? db;
-
+  async saveTranscript(transcript: TranscriptInsert): Promise<Transcript> {
     return this.instrumentationService.startSpan({ name: 'TranscriptsRepository > saveTranscript' }, async () => {
       try {
-        const query = invoker
+        const query = db
           .insert(transcripts)
           .values(transcript)
           .onConflictDoUpdate({
@@ -48,24 +46,6 @@ export class TranscriptsRepository implements ITranscriptsRepository {
         const query = db.query.transcripts.findFirst({ where: eq(transcripts.broadcastId, broadcastId) });
 
         return await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
-          () => query.execute(),
-        );
-      } catch (err) {
-        this.crashReporterService.report(err);
-        throw err;
-      }
-    });
-  }
-
-  async deleteTranscript(broadcastId: string, tx?: Transaction): Promise<void> {
-    const invoker = tx ?? db;
-
-    await this.instrumentationService.startSpan({ name: 'TranscriptsRepository > deleteTranscript' }, async () => {
-      try {
-        const query = invoker.delete(transcripts).where(eq(transcripts.broadcastId, broadcastId));
-
-        await this.instrumentationService.startSpan(
           { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
           () => query.execute(),
         );

@@ -3,7 +3,7 @@ import { beforeEach, expect, it } from 'vitest';
 import { getInjection } from '@/di/container';
 
 const saveRun = getInjection('ISaveRunUseCase');
-const getRun = getInjection('IGetRunUseCase');
+const runsRepository = getInjection('IRunsRepository');
 
 let broadcastId: string;
 
@@ -28,9 +28,9 @@ it('overwrites the run for a broadcast instead of duplicating it', async () => {
   const second = await saveRun({ broadcastId, runId: 'run_456' });
 
   expect(second.id).toBe(first.id);
-  await expect(getRun(broadcastId)).resolves.toMatchObject({ runId: 'run_456' });
+  await expect(runsRepository.getRun(broadcastId)).resolves.toMatchObject({ runId: 'run_456' });
 });
 
 it('returns undefined when no start was ever attempted', async () => {
-  await expect(getRun(broadcastId)).resolves.toBeUndefined();
+  await expect(runsRepository.getRun(broadcastId)).resolves.toBeUndefined();
 });

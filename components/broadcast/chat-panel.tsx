@@ -113,7 +113,7 @@ function ChatEmptyState({
       <div className="flex flex-col gap-1.5 rounded-lg border p-3">
         <p className="text-xs font-medium">Try a citation</p>
         <p className="text-muted-foreground text-xs leading-normal">
-          <AnswerWithCitations text={demoCitation} onSeek={onSeek} />{' '}
+          <AnswerWithCitations text={demoCitation} onSeekAction={onSeek} />{' '}
           {lead ? (
             <>plays “{truncateLabel(lead.headline, 48)}” straight from the broadcast.</>
           ) : (
@@ -131,7 +131,7 @@ export function ChatPanel({
   transcriptReady,
   halted = false,
   activeStory = null,
-  onSeek,
+  onSeekAction,
 }: {
   filename: string;
   stories: StoryCard[];
@@ -140,7 +140,8 @@ export function ChatPanel({
   halted?: boolean;
   /** Story covering the current playback / last seek — drives a contextual chip. */
   activeStory?: StoryCard | null;
-  onSeek: (seconds: number) => void;
+  /** Jump the broadcast player to a cited moment. */
+  onSeekAction: (seconds: number) => void;
 }) {
   const [input, setInput] = React.useState('');
   const transport = React.useMemo(() => new DefaultChatTransport({ api: '/api/chat', body: { filename } }), [filename]);
@@ -191,7 +192,7 @@ export function ChatPanel({
 
       {isEmpty ? (
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <ChatEmptyState stories={stories} transcriptReady={transcriptReady} halted={halted} onSeek={onSeek} />
+          <ChatEmptyState stories={stories} transcriptReady={transcriptReady} halted={halted} onSeek={onSeekAction} />
         </div>
       ) : (
         <Conversation className="min-h-0 flex-1">
@@ -203,7 +204,7 @@ export function ChatPanel({
                     part.type === 'text' ? (
                       <div key={`${message.id}-${i}`} className="text-sm leading-normal">
                         {message.role === 'assistant' ? (
-                          <AnswerWithCitations text={part.text} onSeek={onSeek} />
+                          <AnswerWithCitations text={part.text} onSeekAction={onSeekAction} />
                         ) : (
                           <span className="whitespace-pre-wrap">{part.text}</span>
                         )}

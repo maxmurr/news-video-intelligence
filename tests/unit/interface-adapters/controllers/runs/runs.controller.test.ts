@@ -4,7 +4,6 @@ import { getInjection } from '@/di/container';
 import { InputParseError } from '@/src/entities/errors/common';
 
 const saveRun = getInjection('ISaveRunController');
-const getRun = getInjection('IGetRunController');
 
 let broadcastId: string;
 
@@ -17,10 +16,6 @@ it('saves a run and serializes startedAt as an ISO string', async () => {
 
   expect(dto.runId).toBe('run_1');
   expect(dto.startedAt).toBe(new Date(dto.startedAt).toISOString());
-});
-
-it('returns null when the broadcast has no run record', async () => {
-  await expect(getRun(broadcastId)).resolves.toBeNull();
 });
 
 it('throws InputParseError when broadcastId is missing', async () => {

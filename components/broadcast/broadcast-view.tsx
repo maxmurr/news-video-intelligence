@@ -9,6 +9,7 @@ import { isPipelineComplete, type BroadcastDetail, type BroadcastStages } from '
 import { useLocalDateLabel } from './use-local-date-label';
 import { cn } from '@/lib/utils';
 import { BroadcastPlayer } from './broadcast-player';
+import { DeleteBroadcastButton } from './delete-broadcast-button';
 import { ChatPanel } from './chat-panel';
 import { analysisConcern, StageProgress } from './stage-progress';
 import { activeStoryIndex, StoryGrid } from './story-grid';
@@ -254,6 +255,11 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
             )}
           </p>
         </div>
+        <DeleteBroadcastButton
+          filename={broadcast.filename}
+          title={title}
+          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 ml-auto shrink-0"
+        />
       </header>
 
       {askOpen && (
@@ -282,7 +288,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
           <StoryGrid
             stories={broadcast.stories}
             pending={processing}
-            onSeek={seekTo}
+            onSeekAction={seekTo}
             activeSeconds={activeSeconds}
             leadHeadline={leadHeadline}
           />
@@ -357,7 +363,7 @@ export function BroadcastView({ initial }: { initial: BroadcastDetail }) {
               transcriptReady={transcriptReady}
               halted={concern !== null}
               activeStory={activeStory}
-              onSeek={seekTo}
+              onSeekAction={seekTo}
             />
           </div>
         </aside>

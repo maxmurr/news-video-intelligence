@@ -4,10 +4,9 @@ import { getInjection } from '@/di/container';
 import { NotFoundError } from '@/src/entities/errors/common';
 
 const createBroadcast = getInjection('ICreateBroadcastUseCase');
-const getBroadcast = getInjection('IGetBroadcastUseCase');
 const getBroadcastByFilename = getInjection('IGetBroadcastByFilenameUseCase');
-const getBroadcasts = getInjection('IGetBroadcastsUseCase');
 const deleteBroadcast = getInjection('IDeleteBroadcastUseCase');
+const broadcastsRepository = getInjection('IBroadcastsRepository');
 
 let filename: string;
 
@@ -24,15 +23,6 @@ it('creates a broadcast with an id and timestamps', async () => {
   expect(broadcast.createdAt).toBeInstanceOf(Date);
 });
 
-it('gets a broadcast by id', async () => {
-  const created = await createBroadcast({ filename, url: `/uploads/${filename}`, size: 1 });
-  await expect(getBroadcast(created.id)).resolves.toMatchObject({ id: created.id, filename });
-});
-
-it('throws NotFoundError when the id does not exist', async () => {
-  await expect(getBroadcast('missing')).rejects.toBeInstanceOf(NotFoundError);
-});
-
 it('looks a broadcast up by filename, returning undefined when absent', async () => {
   const created = await createBroadcast({ filename, url: `/uploads/${filename}`, size: 1 });
   await expect(getBroadcastByFilename(filename)).resolves.toMatchObject({ id: created.id });
@@ -41,12 +31,18 @@ it('looks a broadcast up by filename, returning undefined when absent', async ()
 
 it('lists the created broadcast', async () => {
   const created = await createBroadcast({ filename, url: `/uploads/${filename}`, size: 1 });
-  const all = await getBroadcasts();
+  const all = await broadcastsRepository.getBroadcasts();
   expect(all.some(broadcast => broadcast.id === created.id)).toBe(true);
 });
 
-it('deletes a broadcast so a later get throws', async () => {
+it('deletes a broadcast and its stored binaries', async () => {
   const created = await createBroadcast({ filename, url: `/uploads/${filename}`, size: 1 });
   await deleteBroadcast(created.id);
-  await expect(getBroadcast(created.id)).rejects.toBeInstanceOf(NotFoundError);
+
+  await expect(getBroadcastByFilename(filename)).resolves.toBeUndefined();
+  await expect(getInjection('IFileStorageService').uploadExists(filename)).resolves.toBe(false);
+});
+
+it('throws NotFoundError when deleting an unknown broadcast', async () => {
+  await expect(deleteBroadcast('missing')).rejects.toBeInstanceOf(NotFoundError);
 });

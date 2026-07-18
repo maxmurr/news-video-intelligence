@@ -4,8 +4,9 @@
  * deterministic invariant checks plus an LLM judge (different model family
  * than the pipeline to avoid self-preference).
  *
- * Stages are called directly against lib/pipeline — the same code path the
- * durable workflow runs in production — so no dev server is required. Each
+ * Stages are called through the clean-architecture pipeline controllers — the
+ * same code path the durable workflow runs in production — so no dev server is
+ * required. Each
  * eval consumes the stage's return value; a second run gets the rows already
  * stored in the database. Fixture videos dropped straight into public/uploads
  * get their broadcast row created here before the stages run.
@@ -20,7 +21,6 @@ import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getInjection } from '../di/container';
 import { PUBLIC_DIR } from '../lib/artifacts';
-import { detectStories, extractFrames, generateHeadlines, transcribeVideo } from '../lib/pipeline';
 import { HEADLINE_MAX_WORDS, type HeadlineItem, type Story } from '../lib/schemas';
 import { lineTimestamp, timestampToSeconds, transcriptSpan, transcriptTimestamps } from '../lib/timestamps';
 import { videoDurationSeconds } from '../lib/video';
@@ -50,7 +50,7 @@ async function ensureBroadcast(filename: string): Promise<void> {
 
 async function evalTranscribe(filename: string): Promise<{ result: StageResult; transcript: string }> {
   const started = Date.now();
-  const { data: transcript } = await transcribeVideo(filename);
+  const { text: transcript } = await getInjection('ITranscribeBroadcastController')(filename);
   const videoSec = await videoDurationSeconds(path.join(PUBLIC_DIR, 'uploads', filename));
 
   const timestamps = transcriptTimestamps(transcript);
@@ -96,9 +96,7 @@ async function evalTranscribe(filename: string): Promise<{ result: StageResult; 
 
 async function evalStories(filename: string, transcript: string): Promise<{ result: StageResult; stories: Story[] }> {
   const started = Date.now();
-  const {
-    data: { stories },
-  } = await detectStories(filename);
+  const { stories } = await getInjection('IDetectStoriesController')(filename);
 
   const timestamps = transcriptTimestamps(transcript);
   const tsSet = new Set(timestamps);
@@ -141,9 +139,7 @@ async function evalHeadlines(
   stories: Story[],
 ): Promise<{ result: StageResult; headlines: HeadlineItem[] }> {
   const started = Date.now();
-  const {
-    data: { items },
-  } = await generateHeadlines(filename);
+  const { items } = await getInjection('IGenerateHeadlinesController')(filename);
 
   const aligned = items.every((h, i) => h.startTime === stories[i]?.startTime && h.endTime === stories[i]?.endTime);
   const headlineLengths = items.map(h => h.headline.split(/\s+/).length);
@@ -178,9 +174,7 @@ async function evalHeadlines(
 
 async function evalFrames(filename: string, transcript: string, headlines: HeadlineItem[]): Promise<StageResult> {
   const started = Date.now();
-  const {
-    data: { items },
-  } = await extractFrames(filename);
+  const { items } = await getInjection('IExtractFramesController')(filename);
 
   const inSpan = items.every(f => {
     const t = timestampToSeconds(f.frameTime);

@@ -21,8 +21,4 @@ export class MockStoriesRepository implements IStoriesRepository {
   async getStories(broadcastId: string): Promise<Story[]> {
     return this.stories.filter(story => story.broadcastId === broadcastId).sort((a, b) => a.idx - b.idx);
   }
-
-  async deleteStories(broadcastId: string): Promise<void> {
-    this.stories = this.stories.filter(story => story.broadcastId !== broadcastId);
-  }
 }

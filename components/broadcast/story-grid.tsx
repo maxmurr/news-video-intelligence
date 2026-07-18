@@ -124,14 +124,15 @@ function StoryRowSkeleton() {
 export function StoryGrid({
   stories,
   pending,
-  onSeek,
+  onSeekAction,
   activeSeconds = null,
   leadHeadline = null,
 }: {
   stories: StoryCard[];
   /** True while headlines/frames are still being generated. */
   pending: boolean;
-  onSeek: (seconds: number) => void;
+  /** Jump the broadcast player to a story’s start. */
+  onSeekAction: (seconds: number) => void;
   /** Current playback / last seek time in seconds — drives “Now playing”. */
   activeSeconds?: number | null;
   /** Page lead headline — matching row omits a duplicate title. */
@@ -179,7 +180,7 @@ export function StoryGrid({
             <StoryRow
               key={`${story.startTime}-${i}`}
               story={story}
-              onSeek={onSeek}
+              onSeek={onSeekAction}
               priority={i === 0}
               active={i === activeIndex}
               isLead={isLead}

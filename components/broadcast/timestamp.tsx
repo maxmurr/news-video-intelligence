@@ -58,7 +58,14 @@ function formatPlainText(segment: string, keyPrefix: string): React.ReactNode[] 
  * button. A bracket group may hold one timestamp, a dash range, or a comma
  * list — each timestamp becomes its own button (a range becomes one).
  */
-export function AnswerWithCitations({ text, onSeek }: { text: string; onSeek: (seconds: number) => void }) {
+export function AnswerWithCitations({
+  text,
+  onSeekAction,
+}: {
+  text: string;
+  /** Jump the broadcast player to a cited moment. */
+  onSeekAction: (seconds: number) => void;
+}) {
   const nodes = React.useMemo(() => {
     const parsed: React.ReactNode[] = [];
     let lastIndex = 0;
@@ -76,13 +83,13 @@ export function AnswerWithCitations({ text, onSeek }: { text: string; onSeek: (s
             key={`${match.index}-range`}
             timestamp={timestamps[0]}
             endTimestamp={timestamps[1]}
-            onSeek={onSeek}
+            onSeek={onSeekAction}
           />,
         );
       } else {
         timestamps.forEach((timestamp, i) => {
           if (i > 0) parsed.push(' ');
-          parsed.push(<TimestampButton key={`${match.index}-${i}`} timestamp={timestamp} onSeek={onSeek} />);
+          parsed.push(<TimestampButton key={`${match.index}-${i}`} timestamp={timestamp} onSeek={onSeekAction} />);
         });
       }
 
@@ -91,7 +98,7 @@ export function AnswerWithCitations({ text, onSeek }: { text: string; onSeek: (s
     if (lastIndex < text.length) parsed.push(...formatPlainText(text.slice(lastIndex), `${lastIndex}`));
 
     return parsed;
-  }, [text, onSeek]);
+  }, [text, onSeekAction]);
 
   return <span className="whitespace-pre-wrap">{nodes}</span>;
 }

@@ -3,15 +3,15 @@ import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { BroadcastView } from '@/components/broadcast/broadcast-view';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getInjection } from '@/di/container';
 import { isValidUploadFilename } from '@/lib/artifacts';
-import { getBroadcast } from '@/lib/broadcasts';
 
 async function BroadcastLoader({ params }: { params: Promise<{ filename: string }> }) {
   await connection();
   const { filename } = await params;
   if (!isValidUploadFilename(filename)) notFound();
 
-  const broadcast = await getBroadcast(filename);
+  const broadcast = await getInjection('IGetBroadcastDetailController')(filename);
   if (broadcast === null) notFound();
 
   return <BroadcastView initial={broadcast} />;

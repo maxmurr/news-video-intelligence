@@ -40,3 +40,17 @@ export interface FrameItem {
   reason: string;
   frameUrl: string;
 }
+
+/**
+ * The numbered story-list block every prompt that references detected stories
+ * uses (headline generation, frame picking, chat grounding). One owner so the
+ * chat model and the pipeline stages always see the same shape.
+ */
+export function formatStoryList<T extends { startTime: string; endTime: string; summary: string }>(
+  items: T[],
+  heading: (item: T) => string,
+): string {
+  return items
+    .map((item, i) => `${i + 1}. [${item.startTime}-${item.endTime}] ${heading(item)}: ${item.summary}`)
+    .join('\n');
+}

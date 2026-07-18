@@ -27,8 +27,4 @@ export class MockRunsRepository implements IRunsRepository {
   async getRun(broadcastId: string): Promise<Run | undefined> {
     return this.runs.find(item => item.broadcastId === broadcastId);
   }
-
-  async deleteRun(broadcastId: string): Promise<void> {
-    this.runs = this.runs.filter(item => item.broadcastId !== broadcastId);
-  }
 }

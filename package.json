@@ -15,6 +15,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
+    "db:reset": "rm -f sqlite.db sqlite.db-wal sqlite.db-shm && drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "prepare": "husky",
     "evals": "tsx evals/run.ts",

@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 
-import { db, Transaction } from '@/drizzle';
+import { db } from '@/drizzle';
 import { runs } from '@/drizzle/schema';
 import type { IRunsRepository } from '@/src/application/repositories/runs.repository.interface';
 import type { ICrashReporterService } from '@/src/application/services/crash-reporter.service.interface';
@@ -14,13 +14,12 @@ export class RunsRepository implements IRunsRepository {
     private readonly crashReporterService: ICrashReporterService,
   ) {}
 
-  async saveRun(run: RunInsert, tx?: Transaction): Promise<Run> {
-    const invoker = tx ?? db;
+  async saveRun(run: RunInsert): Promise<Run> {
     const startedAt = new Date();
 
     return this.instrumentationService.startSpan({ name: 'RunsRepository > saveRun' }, async () => {
       try {
-        const query = invoker
+        const query = db
           .insert(runs)
           .values({ ...run, startedAt })
           .onConflictDoUpdate({
@@ -49,24 +48,6 @@ export class RunsRepository implements IRunsRepository {
         const query = db.query.runs.findFirst({ where: eq(runs.broadcastId, broadcastId) });
 
         return await this.instrumentationService.startSpan(
-          { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
-          () => query.execute(),
-        );
-      } catch (err) {
-        this.crashReporterService.report(err);
-        throw err;
-      }
-    });
-  }
-
-  async deleteRun(broadcastId: string, tx?: Transaction): Promise<void> {
-    const invoker = tx ?? db;
-
-    await this.instrumentationService.startSpan({ name: 'RunsRepository > deleteRun' }, async () => {
-      try {
-        const query = invoker.delete(runs).where(eq(runs.broadcastId, broadcastId));
-
-        await this.instrumentationService.startSpan(
           { name: query.toSQL().sql, op: 'db.query', attributes: { 'db.system': 'sqlite' } },
           () => query.execute(),
         );
