@@ -26,13 +26,13 @@ export function canSubmitNegativeFeedback(category: NegativeFeedbackCategoryId |
 }
 
 export function NegativeFeedbackPanel({
-  onSubmit,
-  onDismiss,
+  onSubmitAction,
+  onDismissAction,
   className,
   isSubmitting = false,
 }: {
-  onSubmit: (payload: NegativeFeedbackPayload) => void | Promise<void>;
-  onDismiss: () => void;
+  onSubmitAction: (payload: NegativeFeedbackPayload) => void | Promise<void>;
+  onDismissAction: () => void;
   className?: string;
   isSubmitting?: boolean;
 }) {
@@ -58,7 +58,7 @@ export function NegativeFeedbackPanel({
       return;
     }
 
-    void onSubmit({ category: next });
+    void onSubmitAction({ category: next });
   }
 
   function handleSubmit(event?: React.FormEvent) {
@@ -66,7 +66,7 @@ export function NegativeFeedbackPanel({
     // Reached only from the free-text "other" box (submit button / cmd+enter);
     // preset reasons submit directly from selectCategory.
     if (isSubmitting || !category || !canSubmit) return;
-    void onSubmit({ category, comment: comment.trim() });
+    void onSubmitAction({ category, comment: comment.trim() });
   }
 
   function handleCommentKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -79,7 +79,7 @@ export function NegativeFeedbackPanel({
   function handleFormKeyDown(event: React.KeyboardEvent<HTMLFormElement>) {
     if (event.key !== 'Escape') return;
     event.preventDefault();
-    onDismiss();
+    onDismissAction();
   }
 
   return (
@@ -101,7 +101,7 @@ export function NegativeFeedbackPanel({
           type="button"
           variant="ghost"
           size="icon-xs"
-          onClick={onDismiss}
+          onClick={onDismissAction}
           disabled={isSubmitting}
           aria-label="Dismiss feedback"
           className="text-muted-foreground relative shrink-0 after:absolute after:-inset-2"
@@ -127,7 +127,7 @@ export function NegativeFeedbackPanel({
               aria-pressed={isSelected}
               onClick={() => selectCategory(item.id)}
               className={cn(
-                'h-auto min-h-8 w-full min-w-0 justify-start px-2.5 py-1.5 text-left text-xs font-medium break-words whitespace-normal',
+                'h-auto min-h-8 w-full min-w-0 justify-start px-2.5 py-1.5 text-left text-xs font-medium wrap-break-word whitespace-normal',
                 'ease transition-[background-color,color,border-color] duration-150',
                 isSelected &&
                   'bg-foreground text-background hover:bg-foreground hover:text-background [@media(hover:hover)]:hover:bg-foreground [@media(hover:hover)]:hover:text-background',

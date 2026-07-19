@@ -209,8 +209,8 @@ export function AssistantMessageActions({
 
       {isNegativePanelOpen ? (
         <NegativeFeedbackPanel
-          onSubmit={handleNegativeSubmit}
-          onDismiss={handleNegativeDismiss}
+          onSubmitAction={handleNegativeSubmit}
+          onDismissAction={handleNegativeDismiss}
           isSubmitting={isSubmittingNegative}
         />
       ) : null}
