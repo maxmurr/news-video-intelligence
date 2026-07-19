@@ -21,14 +21,18 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/postgres',
 });
 
-try {
-  for (const table of APP_TABLES) {
-    await pool.query(`DROP TABLE IF EXISTS "${table}" CASCADE`);
+async function reset() {
+  try {
+    for (const table of APP_TABLES) {
+      await pool.query(`DROP TABLE IF EXISTS "${table}" CASCADE`);
+    }
+    // The transcript_chunks table needs the pgvector type to exist before the
+    // schema tool (push or migrate) recreates it.
+    await pool.query('CREATE EXTENSION IF NOT EXISTS vector');
+    console.log(`Dropped ${APP_TABLES.length} app tables.`);
+  } finally {
+    await pool.end();
   }
-  // The transcript_chunks table needs the pgvector type to exist before the
-  // schema tool (push or migrate) recreates it.
-  await pool.query('CREATE EXTENSION IF NOT EXISTS vector');
-  console.log(`Dropped ${APP_TABLES.length} app tables.`);
-} finally {
-  await pool.end();
 }
+
+reset();

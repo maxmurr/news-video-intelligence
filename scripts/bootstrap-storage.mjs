@@ -11,7 +11,7 @@ import { CreateBucketCommand, HeadBucketCommand, S3Client } from '@aws-sdk/clien
 
 const bucket = process.env.S3_BUCKET;
 if (!bucket) {
-  console.error('S3_BUCKET is not set. Run with: node --env-file=.env.local scripts/bootstrap-storage.mjs');
+  console.error('S3_BUCKET is not set. Run with: node scripts/bootstrap-storage.mjs');
   process.exit(1);
 }
 
