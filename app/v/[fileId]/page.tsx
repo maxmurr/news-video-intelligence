@@ -1,73 +1,47 @@
 import type { Metadata } from 'next';
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
-import { connection } from 'next/server';
-import { Suspense } from 'react';
-import { BroadcastView } from '@/components/broadcast/broadcast-view';
-import { Skeleton } from '@/components/ui/skeleton';
+import { BroadcastView } from './_components/broadcast-view';
 import { getInjection } from '@/di/container';
 import { isValidBroadcastId } from '@/lib/artifacts';
+import { toBroadcastPageInitial } from '@/lib/broadcast-types';
 
 const NOT_FOUND_TITLE = 'Broadcast not found · Broadcast Desk';
 
+const getBroadcastDetail = cache(async function getBroadcastDetail(fileId: string) {
+  const instrumentationService = getInjection('IInstrumentationService');
+  return await instrumentationService.startSpan({ name: 'getBroadcastDetail', op: 'function.nextjs' }, async () => {
+    try {
+      const getBroadcastDetailController = getInjection('IGetBroadcastDetailController')(fileId);
+      return await getBroadcastDetailController;
+    } catch (err) {
+      const crashReporterService = getInjection('ICrashReporterService');
+      crashReporterService.report(err);
+      throw err;
+    }
+  });
+});
+
 export async function generateMetadata({ params }: { params: Promise<{ fileId: string }> }): Promise<Metadata> {
-  await connection();
   const { fileId } = await params;
   if (!isValidBroadcastId(fileId)) return { title: NOT_FOUND_TITLE };
 
-  const broadcast = await getInjection('IGetBroadcastDetailController')(fileId);
+  const broadcast = await getBroadcastDetail(fileId);
   if (broadcast === null) return { title: NOT_FOUND_TITLE };
-
   const headline = broadcast.topHeadline?.trim();
   return { title: headline ? `${headline} · Broadcast Desk` : 'Broadcast · Broadcast Desk' };
 }
 
-async function BroadcastLoader({ params }: { params: Promise<{ fileId: string }> }) {
-  await connection();
+export default async function BroadcastPage({ params }: { params: Promise<{ fileId: string }> }) {
   const { fileId } = await params;
   if (!isValidBroadcastId(fileId)) notFound();
 
-  const broadcast = await getInjection('IGetBroadcastDetailController')(fileId);
+  const broadcast = await getBroadcastDetail(fileId);
   if (broadcast === null) notFound();
 
-  return <BroadcastView initial={broadcast} />;
-}
-
-function BroadcastSkeleton() {
-  return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col px-4 pb-[calc(3.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:pb-0">
-      <div className="flex items-center gap-3 border-b py-3">
-        <Skeleton className="size-8 rounded-lg" />
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <Skeleton className="h-4 w-48" />
-          <Skeleton className="h-3 w-28" />
-        </div>
-        <Skeleton className="size-7 rounded-lg" />
-      </div>
-      <div className="grid min-h-0 grid-cols-1 gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="flex min-w-0 flex-col gap-6">
-          <Skeleton className="aspect-video w-full rounded-xl" />
-          <div className="flex flex-col gap-3">
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-16 w-full rounded-lg" />
-            <Skeleton className="h-16 w-full rounded-lg" />
-            <Skeleton className="h-16 w-full rounded-lg" />
-          </div>
-        </div>
-        <Skeleton className="hidden h-[calc(100dvh-6rem)] rounded-xl lg:block" />
-      </div>
-      <div className="bg-card fixed inset-x-0 bottom-0 z-40 border-t lg:hidden">
-        <Skeleton className="h-14 w-full rounded-none" />
-      </div>
-    </div>
-  );
-}
-
-export default function BroadcastPage({ params }: { params: Promise<{ fileId: string }> }) {
   return (
     <main>
-      <Suspense fallback={<BroadcastSkeleton />}>
-        <BroadcastLoader params={params} />
-      </Suspense>
+      <BroadcastView initial={toBroadcastPageInitial(broadcast)} />
     </main>
   );
 }

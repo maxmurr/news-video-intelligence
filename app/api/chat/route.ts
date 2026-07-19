@@ -1,15 +1,10 @@
 import { updateActiveObservation } from '@langfuse/tracing';
 
 import { getInjection } from '@/di/container';
-import { latestUserText, parseChatRequest, streamChatResponse, type ChatSource } from '@/lib/chat-stream';
+import { latestUserText, parseChatRequest, streamChatResponse, type ChatSource } from '@/lib/chat/chat-stream';
 import { formatDateTimeContext } from '@/lib/dates';
-import { observeChatRoute } from '@/lib/observe-chat-route';
+import { observeChatRoute } from '@/lib/chat/observe-chat-route';
 
-/**
- * Desk assistant: a knowledge-base assistant grounded ONLY in the user's library
- * of analyzed broadcasts. It never answers from outside knowledge. Broadcast-scoped
- * Q&A over a single video lives at /api/chat/[fileId].
- */
 const GROUNDED_SYSTEM_PROMPT = [
   'You are the desk assistant for a library of analyzed news broadcasts.',
   'Answer ONLY from the library moments provided below in this prompt.',
@@ -29,9 +24,6 @@ interface LibraryHit {
   content: string;
 }
 
-/**
- * Lists the retrieved library moments the model must ground its answer in.
- */
 function libraryGrounding(hits: LibraryHit[], titles: Map<string, string>): string[] {
   const moments = hits.map(hit => {
     const title = titles.get(hit.broadcastId) ?? 'Untitled broadcast';
@@ -57,14 +49,8 @@ async function handleChat(req: Request): Promise<Response> {
 
   const sections = [GROUNDED_SYSTEM_PROMPT];
 
-  // Ground the answer in the most relevant moments across the whole library.
-  // No hits (nothing embedded yet) or a retrieval failure leaves the model with
-  // no context, and the grounded prompt makes it say the library does not cover
-  // the question rather than answering from outside knowledge.
   const query = latestUserText(parsed.messages);
 
-  // Trace input is the user's question, not the assembled grounding prompt —
-  // that keeps the trace readable and puts the library dump in the generation.
   updateActiveObservation({ input: query });
 
   let grounded = false;

@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Spinner } from '@/components/ui/spinner';
-import { PIPELINE_STAGES, type BroadcastSummary, type PipelineStage } from '@/lib/broadcast-types';
+import { PIPELINE_STAGES, type DeskBroadcastRow, type PipelineStage } from '@/lib/broadcast-types';
 import { useLocalDateLabel } from './use-local-date-label';
 
 const STAGE_LABELS: Record<PipelineStage, string> = {
@@ -20,11 +20,11 @@ function shortFileId(filename: string): string {
   return segment.slice(0, 8);
 }
 
-function nextStage(broadcast: BroadcastSummary): PipelineStage | undefined {
+function nextStage(broadcast: DeskBroadcastRow): PipelineStage | undefined {
   return PIPELINE_STAGES.find(stage => !broadcast.stages[stage]);
 }
 
-function stageStatusLabel(broadcast: BroadcastSummary): string {
+function stageStatusLabel(broadcast: DeskBroadcastRow): string {
   const next = nextStage(broadcast);
   if (!next) {
     const count = broadcast.storyCount ?? 0;
@@ -33,7 +33,7 @@ function stageStatusLabel(broadcast: BroadcastSummary): string {
   return STAGE_LABELS[next];
 }
 
-function cardTitle(broadcast: BroadcastSummary): string {
+function cardTitle(broadcast: DeskBroadcastRow): string {
   const headline = broadcast.topHeadline?.trim();
   if (headline) return headline;
   if (nextStage(broadcast)) return 'Processing…';
@@ -45,7 +45,7 @@ export function BroadcastCard({
   broadcast,
   timeOnly = false,
 }: {
-  broadcast: BroadcastSummary;
+  broadcast: DeskBroadcastRow;
   /** When day headers already show the date, rows only need the clock time. */
   timeOnly?: boolean;
 }) {

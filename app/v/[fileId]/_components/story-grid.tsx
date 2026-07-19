@@ -1,0 +1,210 @@
+'use client';
+
+import { memo } from 'react';
+import Image from 'next/image';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { StoryCard } from '@/lib/broadcast-types';
+import { timestampToSeconds } from '@/lib/timestamps';
+import { cn } from '@/lib/utils';
+
+function storyContainsTime(story: StoryCard, seconds: number, isLast: boolean): boolean {
+  const start = timestampToSeconds(story.startTime);
+  const end = timestampToSeconds(story.endTime);
+  if (isLast) return seconds >= start && seconds <= end;
+  return seconds >= start && seconds < end;
+}
+
+/** Index of the story covering `activeSeconds`, or the latest story that has started. */
+export function activeStoryIndex(stories: StoryCard[], activeSeconds: number | null): number | null {
+  if (activeSeconds === null || stories.length === 0) return null;
+
+  for (let i = 0; i < stories.length; i++) {
+    if (storyContainsTime(stories[i], activeSeconds, i === stories.length - 1)) return i;
+  }
+
+  let best: number | null = null;
+  for (let i = 0; i < stories.length; i++) {
+    if (timestampToSeconds(stories[i].startTime) <= activeSeconds) best = i;
+  }
+  return best;
+}
+
+function headlinesMatch(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+const StoryRow = memo(function StoryRow({
+  story,
+  onSeek,
+  priority = false,
+  active = false,
+}: {
+  story: StoryCard;
+  onSeek: (seconds: number) => void;
+  priority?: boolean;
+  active?: boolean;
+}) {
+  return (
+    <li className="[contain-intrinsic-size:auto_7rem] [content-visibility:auto]">
+      <button
+        type="button"
+        onClick={() => onSeek(timestampToSeconds(story.startTime))}
+        aria-label={`Play from ${story.startTime} to ${story.endTime}: ${story.headline}`}
+        aria-current={active ? 'true' : undefined}
+        className={cn(
+          'bg-card [@media(hover:hover)]:hover:bg-muted/30 focus-visible:border-ring focus-visible:ring-ring/50 grid w-full cursor-pointer grid-cols-[6rem_minmax(0,1fr)] items-start gap-3 rounded-md border p-2 text-left transition-colors duration-150 ease-out focus-visible:ring-3 focus-visible:outline-none sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4',
+          active && 'border-border bg-muted/40',
+        )}
+      >
+        <StoryThumb story={story} priority={priority} active={active} />
+        <div className="flex min-w-0 flex-col gap-0.5 py-0.5">
+          <span className="font-heading block text-base leading-snug font-semibold tracking-[-0.015em] text-balance wrap-anywhere">
+            {story.headline}
+          </span>
+          <p className="text-muted-foreground line-clamp-2 max-w-[65ch] text-sm leading-normal wrap-anywhere">
+            {story.summary}
+          </p>
+        </div>
+      </button>
+    </li>
+  );
+});
+
+/** Lead row restates the page headline — show segment copy, not a second title. */
+const LeadStoryRow = memo(function LeadStoryRow({
+  story,
+  onSeek,
+  priority = false,
+  active = false,
+}: {
+  story: StoryCard;
+  onSeek: (seconds: number) => void;
+  priority?: boolean;
+  active?: boolean;
+}) {
+  return (
+    <li className="[contain-intrinsic-size:auto_7rem] [content-visibility:auto]">
+      <button
+        type="button"
+        onClick={() => onSeek(timestampToSeconds(story.startTime))}
+        aria-label={`Play lead segment from ${story.startTime} to ${story.endTime}: ${story.headline}`}
+        aria-current={active ? 'true' : undefined}
+        className={cn(
+          'bg-card [@media(hover:hover)]:hover:bg-muted/30 focus-visible:border-ring focus-visible:ring-ring/50 grid w-full cursor-pointer grid-cols-[6rem_minmax(0,1fr)] items-start gap-3 rounded-md border p-2 text-left transition-colors duration-150 ease-out focus-visible:ring-3 focus-visible:outline-none sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4',
+          active && 'border-border bg-muted/40',
+        )}
+      >
+        <StoryThumb story={story} priority={priority} active={active} />
+        <div className="flex min-w-0 flex-col gap-0.5 py-0.5">
+          <span className="text-muted-foreground text-xs leading-none font-medium">Lead segment</span>
+          <p className="text-muted-foreground line-clamp-2 max-w-[65ch] text-xs leading-snug wrap-anywhere">
+            {story.summary}
+          </p>
+        </div>
+      </button>
+    </li>
+  );
+});
+
+function StoryThumb({ story, priority, active }: { story: StoryCard; priority: boolean; active: boolean }) {
+  return (
+    <div className="bg-muted relative aspect-video w-full overflow-hidden rounded-md">
+      {story.frameUrl ? (
+        <Image
+          src={story.frameUrl}
+          alt={story.frameReason ?? story.headline}
+          fill
+          priority={priority}
+          sizes="(max-width: 640px) 6rem, 8rem"
+          className="object-cover"
+          unoptimized
+        />
+      ) : (
+        <Skeleton className="size-full rounded-none" />
+      )}
+      {active && (
+        <span className="bg-background/90 text-foreground absolute top-1 left-1 rounded-md px-1.5 py-0.5 text-xs font-medium">
+          Now playing
+        </span>
+      )}
+      <span className="absolute bottom-1 left-1 rounded-md bg-black/55 px-1.5 py-0.5 font-mono text-xs font-medium text-white tabular-nums">
+        {story.startTime}
+      </span>
+    </div>
+  );
+}
+
+function StoryRowSkeleton() {
+  return (
+    <li className="grid grid-cols-[6rem_minmax(0,1fr)] items-start gap-3 rounded-md border p-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4">
+      <Skeleton className="aspect-video w-full rounded-md" />
+      <div className="flex flex-col gap-1.5 py-0.5">
+        <Skeleton className="h-4 w-4/5" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-2/3" />
+      </div>
+    </li>
+  );
+}
+
+function StoryGridLoading() {
+  return (
+    <section className="flex flex-col gap-3" aria-busy="true" aria-label="Stories">
+      <ul className="flex flex-col gap-2" aria-label="Stories loading">
+        <StoryRowSkeleton />
+        <StoryRowSkeleton />
+        <StoryRowSkeleton />
+      </ul>
+    </section>
+  );
+}
+
+function StoryGridEmpty() {
+  return (
+    <section className="flex flex-col gap-3" aria-label="Stories">
+      <p className="text-muted-foreground text-sm" role="status">
+        No stories in this broadcast.
+      </p>
+    </section>
+  );
+}
+
+export function StoryGrid({
+  stories,
+  onSeekAction,
+  activeSeconds = null,
+  leadHeadline = null,
+}: {
+  stories: StoryCard[];
+  /** Jump the broadcast player to a story’s start. */
+  onSeekAction: (seconds: number) => void;
+  /** Current playback / last seek time in seconds — drives “Now playing”. */
+  activeSeconds?: number | null;
+  /** Page lead headline — matching row uses LeadStoryRow. */
+  leadHeadline?: string | null;
+}) {
+  const activeIndex = activeStoryIndex(stories, activeSeconds);
+
+  return (
+    <section className="flex flex-col gap-3" aria-label="Stories">
+      <ul className="flex flex-col gap-2">
+        {stories.map((story, i) => {
+          const isLead = leadHeadline != null && headlinesMatch(story.headline, leadHeadline);
+          const Row = isLead ? LeadStoryRow : StoryRow;
+          return (
+            <Row
+              key={`${story.startTime}-${i}`}
+              story={story}
+              onSeek={onSeekAction}
+              priority={i === 0}
+              active={i === activeIndex}
+            />
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+StoryGrid.Loading = StoryGridLoading;
+StoryGrid.Empty = StoryGridEmpty;

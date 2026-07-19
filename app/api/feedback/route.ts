@@ -1,14 +1,9 @@
-import { isNegativeFeedbackCategory } from '@/lib/chat-feedback-categories';
-import { recordChatFeedback } from '@/lib/langfuse-scores';
+import { isNegativeFeedbackCategory } from '@/lib/chat/chat-feedback-categories';
+import { recordChatFeedback } from '@/lib/chat/langfuse-scores';
 
 const TRACE_ID_PATTERN = /^[0-9a-f]{32}$/i;
 const MAX_COMMENT_LENGTH = 2000;
 
-/**
- * Records a thumbs up/down (with an optional reason) as a Langfuse score on the
- * chat trace. The trace id is the assistant message id the client already holds;
- * scoring is server-side so the Langfuse secret key never reaches the browser.
- */
 export async function POST(req: Request): Promise<Response> {
   let body: unknown;
   try {

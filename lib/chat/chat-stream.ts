@@ -11,7 +11,7 @@ import {
 import { context, trace } from '@opentelemetry/api';
 import { getActiveTraceId, updateActiveObservation } from '@langfuse/tracing';
 import { langfuseSpanProcessor } from '@/instrumentation.langfuse';
-import { deferSpanEndToStream } from '@/lib/observe-chat-route';
+import { deferSpanEndToStream } from '@/lib/chat/observe-chat-route';
 import { MODELS } from '@/lib/models';
 import { resolveTimeZone } from '@/lib/dates';
 

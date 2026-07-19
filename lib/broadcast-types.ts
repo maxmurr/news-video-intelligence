@@ -4,6 +4,8 @@
  * sides must agree on — this module is imported from server and client code.
  */
 
+import { countTimestampedTranscriptLines } from '@/lib/timestamps';
+
 export const PIPELINE_STAGES = ['transcript', 'stories', 'headlines', 'frames'] as const;
 
 export type PipelineStage = (typeof PIPELINE_STAGES)[number];
@@ -31,6 +33,21 @@ export interface BroadcastSummary {
   /** First extracted headline when headlines exist; otherwise null. */
   topHeadline: string | null;
   thumbnailUrl: string | null;
+}
+
+/** Desk library/card row — omits video `url` so it never crosses the RSC→client boundary. */
+export type DeskBroadcastRow = Omit<BroadcastSummary, 'url'>;
+
+export function toDeskBroadcastRow(summary: BroadcastSummary): DeskBroadcastRow {
+  return {
+    id: summary.id,
+    filename: summary.filename,
+    uploadedAt: summary.uploadedAt,
+    stages: summary.stages,
+    storyCount: summary.storyCount,
+    topHeadline: summary.topHeadline,
+    thumbnailUrl: summary.thumbnailUrl,
+  };
 }
 
 /** Slim broadcast fields the desk chat client needs for grounding UI. */
@@ -78,7 +95,33 @@ export interface BroadcastRun {
 
 export interface BroadcastDetail extends BroadcastSummary {
   stories: StoryCard[];
-  /** Full timestamped transcript when available; null while transcription is pending. */
+  /** Full timestamped transcript when available; null while pending or when omitted on the wire. */
   transcript: string | null;
+  /**
+   * Seekable transcript line count. Present even when `transcript` is omitted so
+   * the tab badge does not require shipping the full body.
+   */
+  transcriptLineCount: number | null;
   run: BroadcastRun;
+}
+
+/**
+ * RSC → client payload for `/v/[fileId]`: same shape as detail, but the
+ * transcript body is always stripped (loaded when the transcript tab opens).
+ */
+export type BroadcastPageInitial = BroadcastDetail & { transcript: null };
+
+/** Strip the transcript body for the broadcast page client boundary. */
+export function toBroadcastPageInitial(detail: BroadcastDetail): BroadcastPageInitial {
+  return { ...detail, transcript: null };
+}
+
+/** Build the detail wire fields that depend on transcript text. */
+export function transcriptWireFields(
+  transcript: string | null,
+): Pick<BroadcastDetail, 'transcript' | 'transcriptLineCount'> {
+  return {
+    transcript,
+    transcriptLineCount: transcript === null ? null : countTimestampedTranscriptLines(transcript),
+  };
 }

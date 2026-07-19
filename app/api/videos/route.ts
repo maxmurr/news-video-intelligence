@@ -11,15 +11,6 @@ export async function GET(req: Request) {
   const params = new URL(req.url).searchParams;
   const id = params.get('id');
 
-  if (id === null) {
-    // Pre-id-migration clients polled by filename; failing loudly beats
-    // handing them the full list they would misparse as a detail.
-    if (params.has('filename')) {
-      return Response.json({ error: 'Broadcasts are looked up by id now.' }, { status: 400 });
-    }
-    return Response.json({ broadcasts: await getInjection('IGetBroadcastSummariesController')() });
-  }
-
   if (!isValidBroadcastId(id)) {
     return Response.json({ error: 'Invalid broadcast id.' }, { status: 400 });
   }
@@ -27,6 +18,12 @@ export async function GET(req: Request) {
   const broadcast = await getInjection('IGetBroadcastDetailController')(id);
   if (broadcast === null) {
     return Response.json({ error: `Broadcast not found: ${id}` }, { status: 404 });
+  }
+
+  // Pollers only need stages/stories/run — keep the transcript body off the wire
+  // until the transcript tab (or another consumer) asks for the full detail.
+  if (params.get('omitTranscript') === '1') {
+    return Response.json({ ...broadcast, transcript: null });
   }
 
   return Response.json(broadcast);
@@ -94,10 +91,6 @@ export async function POST(req: Request) {
   return Response.json({ id: broadcastId, runId }, { status: 201 });
 }
 
-/**
- * Removes a broadcast and everything derived from it: the row (child stages
- * cascade in Postgres) plus the uploaded video and extracted frames in the bucket.
- */
 export async function DELETE(req: Request) {
   const id = new URL(req.url).searchParams.get('id');
 

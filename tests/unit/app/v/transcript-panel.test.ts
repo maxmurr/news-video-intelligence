@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { activeTranscriptLineIndex } from '@/components/broadcast/transcript-panel';
+import { activeTranscriptLineIndex } from '@/app/v/[fileId]/_components/transcript-panel';
 import { parseTranscriptLines } from '@/lib/timestamps';
 
 describe('parseTranscriptLines', () => {

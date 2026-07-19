@@ -6,21 +6,17 @@ import { BroadcastCard } from '@/components/broadcast/broadcast-card';
 import { useHydrated } from '@/components/broadcast/use-local-date-label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { BroadcastSummary } from '@/lib/broadcast-types';
+import type { DeskBroadcastRow } from '@/lib/broadcast-types';
 import { formatDayHeading, localDayKey, utcDayKey } from '@/lib/dates';
 
 const PREVIEW_LIMIT = 5;
 
-/**
- * UTC days for SSR + hydration, the viewer's local days after mount — so a
- * late-evening upload files under the day the analyst actually made it.
- */
 function groupBroadcastsByDay(
-  broadcasts: BroadcastSummary[],
+  broadcasts: DeskBroadcastRow[],
   useLocalDays: boolean,
-): { day: string; items: BroadcastSummary[] }[] {
+): { day: string; items: DeskBroadcastRow[] }[] {
   const keyFor = useLocalDays ? localDayKey : utcDayKey;
-  const groups = new Map<string, BroadcastSummary[]>();
+  const groups = new Map<string, DeskBroadcastRow[]>();
   for (const broadcast of broadcasts) {
     const key = keyFor(broadcast.uploadedAt) ?? broadcast.uploadedAt.slice(0, 10);
     const bucket = groups.get(key);
@@ -30,13 +26,7 @@ function groupBroadcastsByDay(
   return Array.from(groups.entries()).map(([day, items]) => ({ day, items }));
 }
 
-/**
- * Rows display only the first UUID segment, so search matches only that
- * visible id (plus headline) — a hit on the hidden tail would look wrong.
- * The full broadcast id also matches by prefix, so a pasted share id finds
- * its row.
- */
-function matchesQuery(broadcast: BroadcastSummary, query: string): boolean {
+function matchesQuery(broadcast: DeskBroadcastRow, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   const headline = broadcast.topHeadline?.toLowerCase() ?? '';
@@ -48,7 +38,6 @@ function broadcastNoun(count: number): string {
   return count === 1 ? 'broadcast' : 'broadcasts';
 }
 
-/** Desk status next to search — never a bare numeral. */
 function libraryCountLabel({
   total,
   filtered,
@@ -71,7 +60,7 @@ function libraryCountLabel({
   return `${total} ${broadcastNoun(total)}`;
 }
 
-export function BroadcastLibrary({ broadcasts }: { broadcasts: BroadcastSummary[] }) {
+export function BroadcastLibrary({ broadcasts }: { broadcasts: DeskBroadcastRow[] }) {
   const [query, setQuery] = React.useState('');
   const [expanded, setExpanded] = React.useState(false);
   const deferredQuery = React.useDeferredValue(query);
@@ -107,8 +96,9 @@ export function BroadcastLibrary({ broadcasts }: { broadcasts: BroadcastSummary[
             type="search"
             value={query}
             onChange={event => {
-              setQuery(event.target.value);
-              if (event.target.value.trim()) setExpanded(true);
+              const next = event.target.value;
+              setQuery(next);
+              if (next.trim()) React.startTransition(() => setExpanded(true));
             }}
             placeholder="Search by headline or file ID"
             aria-label="Search broadcasts"
@@ -130,11 +120,14 @@ export function BroadcastLibrary({ broadcasts }: { broadcasts: BroadcastSummary[
       ) : (
         <div className="flex flex-col gap-6">
           {groups.map(group => (
-            <div key={group.day} className="flex flex-col gap-2">
+            <div
+              key={group.day}
+              className="flex flex-col gap-2 [contain-intrinsic-size:auto_12rem] [content-visibility:auto]"
+            >
               <h3 className="text-muted-foreground text-xs font-medium">{formatDayHeading(group.day)}</h3>
               <ul className="flex flex-col gap-2">
                 {group.items.map(broadcast => (
-                  <li key={broadcast.id}>
+                  <li key={broadcast.id} className="[contain-intrinsic-size:auto_4.5rem] [content-visibility:auto]">
                     <BroadcastCard broadcast={broadcast} timeOnly />
                   </li>
                 ))}
@@ -145,13 +138,25 @@ export function BroadcastLibrary({ broadcasts }: { broadcasts: BroadcastSummary[
       )}
 
       {!isFiltering && overflow > 0 ? (
-        <Button type="button" variant="ghost" size="sm" className="self-start" onClick={() => setExpanded(true)}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="self-start"
+          onClick={() => React.startTransition(() => setExpanded(true))}
+        >
           View all {filtered.length} {broadcastNoun(filtered.length)}
         </Button>
       ) : null}
 
       {!isFiltering && expanded && filtered.length > PREVIEW_LIMIT ? (
-        <Button type="button" variant="ghost" size="sm" className="self-start" onClick={() => setExpanded(false)}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="self-start"
+          onClick={() => React.startTransition(() => setExpanded(false))}
+        >
           Show {PREVIEW_LIMIT} most recent
         </Button>
       ) : null}

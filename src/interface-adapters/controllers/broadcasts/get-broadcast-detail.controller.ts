@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { BroadcastDetail } from '@/lib/broadcast-types';
+import { transcriptWireFields, type BroadcastDetail } from '@/lib/broadcast-types';
 import type { IInstrumentationService } from '@/src/application/services/instrumentation.service.interface';
 import type {
   BroadcastDetailResult,
@@ -16,7 +16,7 @@ function presenter(
   return instrumentationService.startSpan({ name: 'getBroadcastDetail Presenter', op: 'serialize' }, async () => ({
     ...(await presentSummary(detail)),
     stories: await mergeStoryCards(detail),
-    transcript: detail.transcript,
+    ...transcriptWireFields(detail.transcript),
     run: {
       status: detail.run.status,
       startedAt: detail.run.startedAt?.toISOString() ?? null,

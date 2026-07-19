@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getInjection } from '@/di/container';
-import { toChatBroadcastOption } from '@/lib/broadcast-types';
+import { type BroadcastSummary, toChatBroadcastOption } from '@/lib/broadcast-types';
 import { ChatInterface } from './_components/chat-interface';
 import { Provider } from '@ai-sdk-tools/store';
 
@@ -23,7 +23,7 @@ async function getBroadcastSummaries() {
 }
 
 export default async function ChatPage() {
-  const broadcastSummaries = await getBroadcastSummaries();
+  const broadcastSummaries: BroadcastSummary[] = await getBroadcastSummaries();
   const chatBroadcasts = broadcastSummaries.map(toChatBroadcastOption);
 
   return (

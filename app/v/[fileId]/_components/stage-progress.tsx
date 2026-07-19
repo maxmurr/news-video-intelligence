@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -62,24 +62,68 @@ function progressHint(stages: BroadcastStages, minutes: number | null): string {
   return 'You can ask now. Stories keep filling in below.';
 }
 
-export function StageProgress({
+function StageList({
   stages,
   concern = null,
-  startedAt = null,
-  onRetry,
-  retrying = false,
 }: {
   stages: BroadcastStages;
-  concern?: AnalysisConcern;
-  /** When the current run was started; drives elapsed-time reassurance. */
-  startedAt?: string | null;
-  onRetry?: () => void;
-  retrying?: boolean;
+  concern?: Exclude<AnalysisConcern, null> | null;
+}) {
+  const activeIndex = PIPELINE_STAGES.findIndex(stage => !stages[stage]);
+
+  return (
+    <ol className="flex flex-col gap-3">
+      {PIPELINE_STAGES.map((stage, i) => {
+        const done = stages[stage];
+        const active = i === activeIndex && !concern;
+        return (
+          <li key={stage} className="flex items-start gap-3">
+            <span
+              className={cn(
+                'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border',
+                done && 'border-primary bg-primary text-primary-foreground',
+                active && 'border-primary',
+                concern && !done && 'border-muted-foreground/40',
+              )}
+            >
+              {done ? (
+                <Check className="size-3" aria-hidden />
+              ) : active ? (
+                <Spinner className="size-3" />
+              ) : (
+                <span className="bg-border size-1.5 rounded-full" aria-hidden />
+              )}
+            </span>
+            <div className="flex flex-col">
+              <span className={cn('text-sm', done || active ? 'font-medium' : 'text-muted-foreground')}>
+                {STAGE_COPY[stage].label}
+                <span className="sr-only">
+                  {done ? ', done' : active ? ', in progress' : concern ? ', needs restart' : ', pending'}
+                </span>
+              </span>
+              {active && <span className="text-muted-foreground text-xs">{STAGE_COPY[stage].detail}</span>}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function StageShell({
+  heading,
+  stages,
+  hint,
+  concern = null,
+  children,
+}: {
+  heading: string;
+  stages: BroadcastStages;
+  hint: string;
+  concern?: Exclude<AnalysisConcern, null> | null;
+  children?: ReactNode;
 }) {
   const doneCount = PIPELINE_STAGES.filter(stage => stages[stage]).length;
-  const activeIndex = PIPELINE_STAGES.findIndex(stage => !stages[stage]);
-  const heading = concern ? CONCERN_COPY[concern].heading : 'Analyzing broadcast';
-  const hint = concern ? CONCERN_COPY[concern].hint : progressHint(stages, elapsedMinutes(startedAt));
 
   return (
     <section aria-label="Analysis progress" className="bg-card flex flex-col gap-4 rounded-xl border p-5">
@@ -93,57 +137,56 @@ export function StageProgress({
         value={(doneCount / PIPELINE_STAGES.length) * 100}
         aria-label={`Analysis progress, ${doneCount} of ${PIPELINE_STAGES.length} steps complete`}
       />
-      <ol className="flex flex-col gap-3">
-        {PIPELINE_STAGES.map((stage, i) => {
-          const done = stages[stage];
-          const active = i === activeIndex && !concern;
-          return (
-            <li key={stage} className="flex items-start gap-3">
-              <span
-                className={cn(
-                  'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border',
-                  done && 'border-primary bg-primary text-primary-foreground',
-                  active && 'border-primary',
-                  concern && !done && 'border-muted-foreground/40',
-                )}
-              >
-                {done ? (
-                  <Check className="size-3" aria-hidden />
-                ) : active ? (
-                  <Spinner className="size-3" />
-                ) : (
-                  <span className="bg-border size-1.5 rounded-full" aria-hidden />
-                )}
-              </span>
-              <div className="flex flex-col">
-                <span className={cn('text-sm', done || active ? 'font-medium' : 'text-muted-foreground')}>
-                  {STAGE_COPY[stage].label}
-                  <span className="sr-only">
-                    {done ? ', done' : active ? ', in progress' : concern ? ', needs restart' : ', pending'}
-                  </span>
-                </span>
-                {active && <span className="text-muted-foreground text-xs">{STAGE_COPY[stage].detail}</span>}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+      <StageList stages={stages} concern={concern} />
       <p className="text-muted-foreground text-xs" aria-live="polite">
         {hint}
       </p>
-      {concern && (
-        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-          {onRetry && (
-            <Button type="button" size="sm" onClick={onRetry} disabled={retrying}>
-              {retrying && <Spinner className="size-3" />}
-              {retrying ? 'Restarting…' : 'Restart analysis'}
-            </Button>
-          )}
-          <Button type="button" size="sm" variant="outline" nativeButton={false} render={<Link href="/" />}>
-            Back to all broadcasts
-          </Button>
-        </div>
-      )}
+      {children}
     </section>
+  );
+}
+
+/** Healthy in-progress analysis — no restart affordance. */
+export function StageProgress({
+  stages,
+  startedAt = null,
+}: {
+  stages: BroadcastStages;
+  /** When the current run was started; drives elapsed-time reassurance. */
+  startedAt?: string | null;
+}) {
+  return (
+    <StageShell heading="Analyzing broadcast" stages={stages} hint={progressHint(stages, elapsedMinutes(startedAt))} />
+  );
+}
+
+/** Failed / stalled / never-started — compose retry and navigation as children. */
+export function StageProgressConcern({
+  stages,
+  concern,
+  children,
+}: {
+  stages: BroadcastStages;
+  concern: Exclude<AnalysisConcern, null>;
+  children: ReactNode;
+}) {
+  return (
+    <StageShell
+      heading={CONCERN_COPY[concern].heading}
+      stages={stages}
+      hint={CONCERN_COPY[concern].hint}
+      concern={concern}
+    >
+      <div className="flex flex-wrap items-center gap-2 border-t pt-3">{children}</div>
+    </StageShell>
+  );
+}
+
+export function StageProgressRetry({ onRetry, retrying = false }: { onRetry: () => void; retrying?: boolean }) {
+  return (
+    <Button type="button" size="sm" onClick={onRetry} disabled={retrying}>
+      {retrying && <Spinner className="size-3" />}
+      {retrying ? 'Restarting…' : 'Restart analysis'}
+    </Button>
   );
 }

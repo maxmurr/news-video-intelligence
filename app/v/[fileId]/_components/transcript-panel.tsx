@@ -52,16 +52,25 @@ const TranscriptRow = React.memo(function TranscriptRow({
   line,
   active,
   onSeek,
-  rowRef,
+  index,
+  registerRow,
 }: {
   line: TranscriptLine;
   active: boolean;
   onSeek: (seconds: number) => void;
-  rowRef?: (node: HTMLButtonElement | null) => void;
+  index: number;
+  registerRow: (index: number, node: HTMLButtonElement | null) => void;
 }) {
+  const rowRef = React.useCallback(
+    (node: HTMLButtonElement | null) => {
+      registerRow(index, node);
+    },
+    [index, registerRow],
+  );
+
   if (line.timestamp === null || line.seconds === null) {
     return (
-      <li className="text-muted-foreground min-w-0 px-1 py-1 text-sm leading-relaxed wrap-anywhere sm:px-3">
+      <li className="text-muted-foreground min-w-0 px-1 py-1 text-sm leading-relaxed wrap-anywhere [contain-intrinsic-size:auto_2.5rem] [content-visibility:auto] sm:px-3">
         {line.text}
       </li>
     );
@@ -70,7 +79,7 @@ const TranscriptRow = React.memo(function TranscriptRow({
   const { timestamp, seconds, text } = line;
 
   return (
-    <li className="min-w-0">
+    <li className="min-w-0 [contain-intrinsic-size:auto_3.5rem] [content-visibility:auto]">
       <button
         ref={rowRef}
         type="button"
@@ -81,9 +90,9 @@ const TranscriptRow = React.memo(function TranscriptRow({
         aria-label={`Play from ${timestamp}: ${text}`}
         aria-current={active ? 'true' : undefined}
         className={cn(
-          'focus-visible:border-ring focus-visible:ring-ring/50 grid min-h-11 w-full min-w-0 cursor-pointer grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-3 rounded-md border border-transparent px-1 py-2 text-left transition-colors duration-150 ease-out focus-visible:ring-3 focus-visible:outline-none sm:px-3',
+          'focus-visible:ring-ring/50 grid min-h-11 w-full min-w-0 cursor-pointer grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-3 rounded-md px-1 py-2 text-left transition-colors duration-150 ease-out focus-visible:ring-3 focus-visible:outline-none sm:px-3',
           '[@media(hover:hover)]:hover:bg-muted/30',
-          active && 'border-border bg-muted/40',
+          active && 'bg-muted/40',
         )}
       >
         <span
@@ -100,27 +109,55 @@ const TranscriptRow = React.memo(function TranscriptRow({
   );
 });
 
+export function TranscriptLoading({
+  message = 'Extracting the timestamped transcript…',
+}: {
+  message?: string;
+} = {}) {
+  return (
+    <section className="flex flex-col gap-2" aria-busy="true" aria-label="Transcript loading">
+      <p className="text-muted-foreground text-xs">{message}</p>
+      <ul className="flex flex-col">
+        <TranscriptLineSkeleton />
+        <TranscriptLineSkeleton />
+        <TranscriptLineSkeleton />
+        <TranscriptLineSkeleton />
+      </ul>
+    </section>
+  );
+}
+
+export function TranscriptEmpty() {
+  return (
+    <section aria-label="Transcript" className="flex flex-col gap-1" role="status">
+      <p className="text-sm">No transcript for this broadcast.</p>
+      <p className="text-muted-foreground text-sm">Open Stories to browse segments, or Ask after transcription.</p>
+    </section>
+  );
+}
+
 export function TranscriptPanel({
   transcript,
-  pending,
   onSeekAction,
   activeSeconds = null,
 }: {
-  transcript: string | null;
-  /** True while transcription has not finished. */
-  pending: boolean;
+  transcript: string;
   /** Jump the broadcast player to a transcript line’s timestamp. */
   onSeekAction: (seconds: number) => void;
   /** Current playback / last seek time in seconds — drives the active line. */
   activeSeconds?: number | null;
 }) {
-  const lines = React.useMemo(() => (transcript ? parseTranscriptLines(transcript) : []), [transcript]);
+  const lines = React.useMemo(() => parseTranscriptLines(transcript), [transcript]);
   const activeIndex = activeTranscriptLineIndex(lines, activeSeconds);
   const activeLine = activeIndex !== null ? lines[activeIndex] : null;
   const [followPlayback, setFollowPlayback] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   const rowRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
   const copiedResetRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const registerRow = React.useCallback((index: number, node: HTMLButtonElement | null) => {
+    rowRefs.current[index] = node;
+  }, []);
 
   const jumpToPlayhead = React.useCallback(() => {
     if (activeIndex === null) return;
@@ -129,7 +166,6 @@ export function TranscriptPanel({
   }, [activeIndex]);
 
   const copyTranscript = React.useCallback(async () => {
-    if (!transcript) return;
     try {
       await copyText(transcript);
       setCopied(true);
@@ -153,28 +189,7 @@ export function TranscriptPanel({
     };
   }, []);
 
-  if (lines.length === 0 && pending) {
-    return (
-      <section className="flex flex-col gap-2" aria-busy="true" aria-label="Transcript loading">
-        <p className="text-muted-foreground text-xs">Extracting the timestamped transcript…</p>
-        <ul className="flex flex-col">
-          <TranscriptLineSkeleton />
-          <TranscriptLineSkeleton />
-          <TranscriptLineSkeleton />
-          <TranscriptLineSkeleton />
-        </ul>
-      </section>
-    );
-  }
-
-  if (lines.length === 0) {
-    return (
-      <section aria-label="Transcript" className="flex flex-col gap-1" role="status">
-        <p className="text-sm">No transcript for this broadcast.</p>
-        <p className="text-muted-foreground text-sm">Open Stories to browse segments, or Ask after transcription.</p>
-      </section>
-    );
-  }
+  if (lines.length === 0) return <TranscriptEmpty />;
 
   const playheadClock = activeLine?.timestamp ?? (activeSeconds !== null ? secondsToTimestamp(activeSeconds) : null);
 
@@ -237,9 +252,8 @@ export function TranscriptPanel({
             line={line}
             active={i === activeIndex}
             onSeek={onSeekAction}
-            rowRef={node => {
-              rowRefs.current[i] = node;
-            }}
+            index={i}
+            registerRow={registerRow}
           />
         ))}
       </ul>

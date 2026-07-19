@@ -3,7 +3,7 @@
 import { ArrowUpIcon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from '@/components/ui/input-group';
-import { NEGATIVE_FEEDBACK_CATEGORIES, type NegativeFeedbackCategoryId } from '@/lib/chat-feedback-categories';
+import { NEGATIVE_FEEDBACK_CATEGORIES, type NegativeFeedbackCategoryId } from '@/lib/chat/chat-feedback-categories';
 import { cn } from '@/lib/utils';
 import { KeyboardEvent, SyntheticEvent, useId, useRef, useState } from 'react';
 

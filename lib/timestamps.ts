@@ -68,6 +68,15 @@ export function parseTranscriptLines(transcript: string): TranscriptLine[] {
     });
 }
 
+/** Seekable line count for tab badges without shipping the full transcript body. */
+export function countTimestampedTranscriptLines(transcript: string): number {
+  let count = 0;
+  for (const line of parseTranscriptLines(transcript)) {
+    if (line.seconds !== null) count += 1;
+  }
+  return count;
+}
+
 /** Transcript lines whose leading timestamp falls within [start, end]. */
 export function transcriptSpan(transcript: string, start: string, end: string): string {
   const startSec = timestampToSeconds(start);

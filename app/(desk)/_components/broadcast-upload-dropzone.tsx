@@ -3,32 +3,16 @@
 import { useRouter } from 'next/navigation';
 import * as React from 'react';
 import { toast } from 'sonner';
-import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  FileUpload,
-  FileUploadDropzone,
-  FileUploadItem,
-  FileUploadItemDelete,
-  FileUploadItemMetadata,
-  FileUploadItemPreview,
-  FileUploadItemProgress,
-  FileUploadList,
-  FileUploadTrigger,
-} from '@/components/ui/file-upload';
+import { FileUpload, FileUploadDropzone, FileUploadTrigger } from '@/components/ui/file-upload';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/broadcast-types';
 
 interface UploadResponse {
   id?: string;
-  /** Workflow run id; null when the upload landed but analysis failed to start. */
   runId?: string | null;
   error?: string;
 }
 
-/**
- * Raw body instead of multipart so the server streams straight to disk, and
- * XHR instead of fetch so the dropzone gets real upload progress events.
- */
 function uploadVideo(file: File, onProgress: (percent: number) => void): Promise<UploadResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -51,7 +35,7 @@ function uploadVideo(file: File, onProgress: (percent: number) => void): Promise
   });
 }
 
-export function UploadDropzone() {
+export function BroadcastUploadDropzone() {
   const router = useRouter();
   const [files, setFiles] = React.useState<File[]>([]);
 
@@ -70,24 +54,39 @@ export function UploadDropzone() {
     ) => {
       const file = accepted[0];
       if (!file) return;
+
+      const toastId = toast.loading('Uploading broadcast…', {
+        description: file.name,
+      });
+
       try {
         const { id, runId } = await uploadVideo(file, percent => onProgress(file, percent));
         if (!id) throw new Error('Upload succeeded but no broadcast id was returned.');
+
         onSuccess(file);
+        setFiles([]);
+
         if (runId === null) {
           toast.warning('Uploaded, but analysis didn’t start', {
+            id: toastId,
             description: 'The broadcast is safe. Restart analysis from the next page.',
           });
         } else {
           toast.success('Broadcast uploaded', {
+            id: toastId,
             description: 'Extracting transcript and stories. Progress opens next.',
           });
         }
+
         router.push(`/v/${id}`);
       } catch (error) {
         const err = error instanceof Error ? error : new Error('Upload failed.');
         onError(file, err);
-        toast.error('Upload failed', { description: err.message });
+        setFiles([]);
+        toast.error('Upload failed', {
+          id: toastId,
+          description: err.message,
+        });
       }
     },
     [router],
@@ -116,22 +115,6 @@ export function UploadDropzone() {
           }
         />
       </FileUploadDropzone>
-      <FileUploadList>
-        {files.map(file => (
-          <FileUploadItem key={file.name} value={file}>
-            <FileUploadItemPreview />
-            <FileUploadItemMetadata />
-            <FileUploadItemProgress />
-            <FileUploadItemDelete
-              render={
-                <Button variant="ghost" size="icon-sm" aria-label="Remove file">
-                  <X aria-hidden />
-                </Button>
-              }
-            />
-          </FileUploadItem>
-        ))}
-      </FileUploadList>
     </FileUpload>
   );
 }

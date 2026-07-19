@@ -2,18 +2,12 @@ import { updateActiveObservation } from '@langfuse/tracing';
 
 import { getInjection } from '@/di/container';
 import { isValidBroadcastId } from '@/lib/artifacts';
-import { latestUserText, parseChatRequest, streamChatResponse } from '@/lib/chat-stream';
+import { latestUserText, parseChatRequest, streamChatResponse } from '@/lib/chat/chat-stream';
 import { formatDateTimeContext } from '@/lib/dates';
-import { observeChatRoute } from '@/lib/observe-chat-route';
+import { observeChatRoute } from '@/lib/chat/observe-chat-route';
 import { formatStoryList, type HeadlineItem } from '@/lib/schemas';
 import { NotFoundError } from '@/src/entities/errors/common';
 
-/**
- * Grounds every answer in the broadcast: the full timestamped transcript plus
- * the detected story list go into the system prompt, and the model must cite
- * transcript timestamps so the client can turn each citation into a
- * jump-to-moment button on the video.
- */
 function broadcastSystemPrompt(transcript: string, storyList: string | null, timezone: string): string {
   return [
     'You are a news assistant for one specific news broadcast. You are given its full timestamped transcript' +
@@ -45,9 +39,6 @@ async function handleBroadcastChat(req: Request, ctx: RouteContext<'/api/chat/[f
     return new Response('Invalid broadcast id.', { status: 400 });
   }
 
-  // Needs only the already-validated id, so it overlaps the body parse and
-  // message validation below. The no-op catch keeps an early 400 return from
-  // surfacing the lookup as an unhandled rejection.
   const contextPromise = getInjection('IGetChatContextController')(fileId);
   contextPromise.catch(() => {});
 

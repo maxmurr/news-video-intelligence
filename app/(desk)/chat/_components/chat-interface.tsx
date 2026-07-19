@@ -14,8 +14,8 @@ import { AssistantMessageActions, assistantMessageText } from '@/components/chat
 import { UserMessage, userMessageText } from '@/components/chat/user-message';
 import { Button } from '@/components/ui/button';
 import type { ChatBroadcastOption } from '@/lib/broadcast-types';
-import { submitChatFeedback } from '@/lib/chat-feedback';
-import { shouldShowLoadingShimmer } from '@/lib/chat-loading';
+import { submitChatFeedback } from '@/lib/chat/chat-feedback';
+import { shouldShowLoadingShimmer } from '@/lib/chat/chat-loading';
 import { browserTimeZone } from '@/lib/dates';
 import {
   useChat,
