@@ -33,6 +33,24 @@ export interface BroadcastSummary {
   thumbnailUrl: string | null;
 }
 
+/** Slim broadcast fields the desk chat client needs for grounding UI. */
+export interface ChatBroadcastOption {
+  id: string;
+  topHeadline: string | null;
+  thumbnailUrl: string | null;
+  /** True when the transcript stage is complete and Q&A can be grounded. */
+  isAskReady: boolean;
+}
+
+export function toChatBroadcastOption(broadcast: BroadcastSummary): ChatBroadcastOption {
+  return {
+    id: broadcast.id,
+    topHeadline: broadcast.topHeadline,
+    thumbnailUrl: broadcast.thumbnailUrl,
+    isAskReady: broadcast.stages.transcript,
+  };
+}
+
 /** One story of the interactive newspaper: headline + frame merged by index. */
 export interface StoryCard {
   headline: string;

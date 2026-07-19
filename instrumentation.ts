@@ -7,6 +7,8 @@ import * as Sentry from '@sentry/nextjs';
  *   Node only — it uses the Node tracer SDK.
  * - Workflow "Postgres World": starts the graphile-worker that drains the
  *   pipeline queue. Node only — the edge runtime has no worker to run.
+ *   Skipped when WORKFLOW_WORKER=0 so a dev server can run without draining
+ *   the queue; enqueued jobs wait until a worker-enabled process picks them up.
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
@@ -15,8 +17,10 @@ export async function register() {
     const { setupLangfuseTelemetry } = await import('./instrumentation.langfuse');
     setupLangfuseTelemetry();
 
-    const { getWorld } = await import('workflow/runtime');
-    await getWorld().start?.();
+    if (process.env.WORKFLOW_WORKER !== '0') {
+      const { getWorld } = await import('workflow/runtime');
+      await getWorld().start?.();
+    }
   }
 
   if (process.env.NEXT_RUNTIME === 'edge') {

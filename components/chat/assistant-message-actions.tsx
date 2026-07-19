@@ -1,6 +1,5 @@
 'use client';
 
-import * as React from 'react';
 import { CheckIcon, CopyIcon, ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { MessageAction, MessageActions, MessageToolbar } from '@/components/ai-elements/message';
@@ -11,6 +10,7 @@ import {
 } from '@/components/chat/negative-feedback-panel';
 import { copyText } from '@/lib/clipboard-share';
 import { cn } from '@/lib/utils';
+import { useEffect, useRef, useState, useTransition } from 'react';
 
 function thankYouForFeedback() {
   toast.success('Thanks for the feedback', {
@@ -68,13 +68,14 @@ export function AssistantMessageActions({
    */
   onFeedbackAction?: (feedback: AssistantFeedback) => boolean | void | Promise<boolean | void>;
 }) {
-  const [copied, setCopied] = React.useState(false);
-  const [feedback, setFeedback] = React.useState<Feedback>(null);
-  const [isNegativePanelOpen, setIsNegativePanelOpen] = React.useState(false);
-  const [isSubmittingNegative, setIsSubmittingNegative] = React.useState(false);
-  const copyResetRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [isNegativePanelOpen, setIsNegativePanelOpen] = useState(false);
+  const [isSubmittingNegative, startNegativeSubmit] = useTransition();
+  const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const submittingNegativeRef = useRef(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (copyResetRef.current) clearTimeout(copyResetRef.current);
     };
@@ -125,25 +126,28 @@ export function AssistantMessageActions({
     setIsNegativePanelOpen(true);
   }
 
-  async function handleNegativeSubmit(payload: NegativeFeedbackPayload) {
-    if (isSubmittingNegative) return;
-    setIsSubmittingNegative(true);
-    try {
-      const result = await onFeedbackAction?.({
-        sentiment: 'down',
-        category: payload.category,
-        comment: payload.comment,
-      });
-      if (result === false) {
-        feedbackFailed();
-        return;
+  function handleNegativeSubmit(payload: NegativeFeedbackPayload) {
+    if (submittingNegativeRef.current) return;
+    submittingNegativeRef.current = true;
+
+    startNegativeSubmit(async () => {
+      try {
+        const result = await onFeedbackAction?.({
+          sentiment: 'down',
+          category: payload.category,
+          comment: payload.comment,
+        });
+        if (result === false) {
+          feedbackFailed();
+          return;
+        }
+        setFeedback('down');
+        setIsNegativePanelOpen(false);
+        thankYouForFeedback();
+      } finally {
+        submittingNegativeRef.current = false;
       }
-      setFeedback('down');
-      setIsNegativePanelOpen(false);
-      thankYouForFeedback();
-    } finally {
-      setIsSubmittingNegative(false);
-    }
+    });
   }
 
   function handleNegativeDismiss() {
@@ -230,8 +234,7 @@ export function countMessageSources(parts: ReadonlyArray<{ type: string }>): num
 /** Concatenate text parts for clipboard copy. */
 export function assistantMessageText(parts: ReadonlyArray<{ type: string; text?: string }>): string {
   return parts
-    .filter(part => part.type === 'text' && typeof part.text === 'string')
-    .map(part => part.text)
+    .flatMap(part => (part.type === 'text' && typeof part.text === 'string' ? [part.text] : []))
     .join('\n\n')
     .trim();
 }

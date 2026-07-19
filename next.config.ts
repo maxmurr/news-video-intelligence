@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   reactCompiler: true,
   typedRoutes: true,
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
