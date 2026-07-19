@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { UIMessage } from 'ai';
 
-import { shouldShowLoadingShimmer } from '@/lib/chat-stream';
+import { shouldShowLoadingShimmer } from '@/lib/chat-loading';
 
 function message(role: UIMessage['role'], parts: UIMessage['parts'], id: string = role): UIMessage {
   return { id, role, parts };

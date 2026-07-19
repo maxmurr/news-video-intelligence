@@ -2,11 +2,35 @@
 
 import * as React from 'react';
 import { CheckIcon, CopyIcon, ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { MessageAction, MessageActions, MessageToolbar } from '@/components/ai-elements/message';
+import {
+  NegativeFeedbackPanel,
+  type NegativeFeedbackCategoryId,
+  type NegativeFeedbackPayload,
+} from '@/components/chat/negative-feedback-panel';
 import { copyText } from '@/lib/clipboard-share';
 import { cn } from '@/lib/utils';
 
+function thankYouForFeedback() {
+  toast.success('Thanks for the feedback', {
+    description: 'Your rating helps improve future answers.',
+  });
+}
+
+function feedbackFailed() {
+  toast.error('Couldn’t send feedback', {
+    description: 'Please try again in a moment.',
+  });
+}
+
 type Feedback = 'up' | 'down' | null;
+
+export interface AssistantFeedback {
+  sentiment: 'up' | 'down';
+  category?: NegativeFeedbackCategoryId;
+  comment?: string;
+}
 
 function BroadcastSourcesIcon({ className }: { className?: string }) {
   return (
@@ -31,14 +55,23 @@ export function AssistantMessageActions({
   text,
   sourceCount = 0,
   className,
+  onFeedbackAction,
 }: {
   text: string;
   /** Unique grounded broadcasts; omit or pass 0 to hide the sources badge. */
   sourceCount?: number;
   className?: string;
+  /**
+   * Fired when the reader rates the response; wire to Langfuse scores.
+   * Return `false` (or a promise of `false`) to signal a failed submit — negative
+   * feedback only hides the thumbs-up control after a successful submit.
+   */
+  onFeedbackAction?: (feedback: AssistantFeedback) => boolean | void | Promise<boolean | void>;
 }) {
   const [copied, setCopied] = React.useState(false);
   const [feedback, setFeedback] = React.useState<Feedback>(null);
+  const [isNegativePanelOpen, setIsNegativePanelOpen] = React.useState(false);
+  const [isSubmittingNegative, setIsSubmittingNegative] = React.useState(false);
   const copyResetRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
@@ -59,57 +92,129 @@ export function AssistantMessageActions({
     }
   }
 
-  function toggleFeedback(next: Exclude<Feedback, null>) {
-    setFeedback(current => (current === next ? null : next));
+  async function handleThumbsUp() {
+    setIsNegativePanelOpen(false);
+    if (feedback === 'up') {
+      setFeedback(null);
+      return;
+    }
+    // Optimistic: hide thumbs-down as soon as thumbs-up is chosen, then roll back
+    // if the submit fails so the toolbar never shows an unrecorded rating.
+    setFeedback('up');
+    const result = await onFeedbackAction?.({ sentiment: 'up' });
+    if (result === false) {
+      setFeedback(null);
+      feedbackFailed();
+      return;
+    }
+    thankYouForFeedback();
+  }
+
+  function handleThumbsDown() {
+    if (isNegativePanelOpen) {
+      setIsNegativePanelOpen(false);
+      return;
+    }
+
+    if (feedback === 'down') {
+      setFeedback(null);
+      return;
+    }
+
+    // Keep thumbs-up visible until negative feedback submits successfully.
+    setIsNegativePanelOpen(true);
+  }
+
+  async function handleNegativeSubmit(payload: NegativeFeedbackPayload) {
+    if (isSubmittingNegative) return;
+    setIsSubmittingNegative(true);
+    try {
+      const result = await onFeedbackAction?.({
+        sentiment: 'down',
+        category: payload.category,
+        comment: payload.comment,
+      });
+      if (result === false) {
+        feedbackFailed();
+        return;
+      }
+      setFeedback('down');
+      setIsNegativePanelOpen(false);
+      thankYouForFeedback();
+    } finally {
+      setIsSubmittingNegative(false);
+    }
+  }
+
+  function handleNegativeDismiss() {
+    setIsNegativePanelOpen(false);
   }
 
   const sourceLabel = sourceCount === 1 ? '1 source' : `${sourceCount} sources`;
+  const showThumbsUp = feedback !== 'down';
+  const showThumbsDown = feedback !== 'up';
+  const isThumbsDownActive = feedback === 'down' || isNegativePanelOpen;
 
   return (
-    <MessageToolbar className={cn('mt-1.5 w-auto justify-start gap-2', className)}>
-      <MessageActions className="gap-0.5">
-        <MessageAction
-          tooltip={copied ? 'Copied' : 'Copy'}
-          label={copied ? 'Copied' : 'Copy response'}
-          onClick={() => void handleCopy()}
-          className={hitTargetClassName()}
-          aria-label={copied ? 'Copied' : 'Copy response'}
-        >
-          {copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
-        </MessageAction>
-        <MessageAction
-          tooltip="Good response"
-          label="Good response"
-          onClick={() => toggleFeedback('up')}
-          aria-pressed={feedback === 'up'}
-          className={hitTargetClassName(feedback === 'up' ? 'text-foreground bg-muted/80' : undefined)}
-        >
-          <ThumbsUpIcon className="size-3.5" />
-        </MessageAction>
-        <MessageAction
-          tooltip="Bad response"
-          label="Bad response"
-          onClick={() => toggleFeedback('down')}
-          aria-pressed={feedback === 'down'}
-          className={hitTargetClassName(feedback === 'down' ? 'text-foreground bg-muted/80' : undefined)}
-        >
-          <ThumbsDownIcon className="size-3.5" />
-        </MessageAction>
-      </MessageActions>
+    <div className={cn('flex w-full max-w-full min-w-0 flex-col items-stretch gap-2', className)}>
+      <MessageToolbar className="mt-1.5 w-full min-w-0 justify-start gap-2">
+        <MessageActions className="gap-0.5">
+          <MessageAction
+            tooltip={copied ? 'Copied' : 'Copy'}
+            label={copied ? 'Copied' : 'Copy response'}
+            onClick={() => void handleCopy()}
+            className={hitTargetClassName()}
+            aria-label={copied ? 'Copied' : 'Copy response'}
+          >
+            {copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
+          </MessageAction>
+          {showThumbsUp ? (
+            <MessageAction
+              tooltip="Good response"
+              label="Good response"
+              onClick={() => void handleThumbsUp()}
+              aria-pressed={feedback === 'up'}
+              className={hitTargetClassName(feedback === 'up' ? 'text-foreground bg-muted/80' : undefined)}
+            >
+              <ThumbsUpIcon className="size-3.5" />
+            </MessageAction>
+          ) : null}
+          {showThumbsDown ? (
+            <MessageAction
+              tooltip="Bad response"
+              label="Bad response"
+              onClick={handleThumbsDown}
+              aria-pressed={feedback === 'down'}
+              aria-expanded={isNegativePanelOpen}
+              className={hitTargetClassName(isThumbsDownActive ? 'text-foreground bg-muted/80' : undefined)}
+            >
+              <ThumbsDownIcon className="size-3.5" />
+            </MessageAction>
+          ) : null}
+        </MessageActions>
 
-      {sourceCount > 0 ? (
-        <span
-          className={cn(
-            'text-muted-foreground inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border px-2 text-xs',
-            'border-border/80 bg-muted/40 tabular-nums',
-          )}
-          title={sourceLabel}
-        >
-          <BroadcastSourcesIcon className="size-3.5 shrink-0" />
-          <span>{sourceLabel}</span>
-        </span>
+        {sourceCount > 0 ? (
+          <span
+            className={cn(
+              'text-muted-foreground inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border px-2 text-xs',
+              'border-border/80 bg-muted/40 tabular-nums',
+            )}
+            title={sourceLabel}
+          >
+            <BroadcastSourcesIcon className="size-3.5 shrink-0" />
+            <span>{sourceLabel}</span>
+          </span>
+        ) : null}
+      </MessageToolbar>
+
+      {isNegativePanelOpen ? (
+        <NegativeFeedbackPanel
+          onSubmit={handleNegativeSubmit}
+          onDismiss={handleNegativeDismiss}
+          isSubmitting={isSubmittingNegative}
+        />
       ) : null}
-    </MessageToolbar>
+    </div>
   );
 }
 

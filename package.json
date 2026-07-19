@@ -32,6 +32,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1090.0",
     "@base-ui/react": "^1.6.0",
     "@evyweb/ioctopus": "^1.4.1",
+    "@langfuse/client": "5.9.1",
     "@langfuse/otel": "5.9.1",
     "@langfuse/tracing": "5.9.1",
     "@langfuse/vercel-ai-sdk": "5.9.1",

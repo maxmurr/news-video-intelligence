@@ -22,8 +22,18 @@ export const Conversation = ({ className, ...props }: ConversationProps) => (
 
 export type ConversationContentProps = ComponentProps<typeof StickToBottom.Content>;
 
-export const ConversationContent = ({ className, ...props }: ConversationContentProps) => (
-  <StickToBottom.Content className={cn('flex flex-col gap-8 p-4', className)} {...props} />
+export const ConversationContent = ({ className, scrollClassName, ...props }: ConversationContentProps) => (
+  <StickToBottom.Content
+    // StickToBottom sets inline `scrollbar-gutter: stable both-edges`, which reserves
+    // gutters on both sides and commonly triggers a horizontal scrollbar. Keep a
+    // single-edge gutter and never allow x-axis overflow on the scrollport.
+    scrollClassName={cn(
+      'overflow-x-hidden overflow-y-auto overscroll-contain ![scrollbar-gutter:stable]',
+      scrollClassName,
+    )}
+    className={cn('flex min-w-0 flex-col gap-8 p-4', className)}
+    {...props}
+  />
 );
 
 export type ConversationEmptyStateProps = ComponentProps<'div'> & {

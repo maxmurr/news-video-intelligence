@@ -1,7 +1,10 @@
+import { updateActiveObservation } from '@langfuse/tracing';
+
 import { getInjection } from '@/di/container';
 import { isValidBroadcastId } from '@/lib/artifacts';
-import { parseChatRequest, streamChatResponse } from '@/lib/chat-stream';
+import { latestUserText, parseChatRequest, streamChatResponse } from '@/lib/chat-stream';
 import { formatDateTimeContext } from '@/lib/dates';
+import { observeChatRoute } from '@/lib/observe-chat-route';
 import { formatStoryList, type HeadlineItem } from '@/lib/schemas';
 import { NotFoundError } from '@/src/entities/errors/common';
 
@@ -36,7 +39,7 @@ function broadcastSystemPrompt(transcript: string, storyList: string | null, tim
   ].join('\n');
 }
 
-export async function POST(req: Request, ctx: RouteContext<'/api/chat/[fileId]'>) {
+async function handleBroadcastChat(req: Request, ctx: RouteContext<'/api/chat/[fileId]'>) {
   const { fileId } = await ctx.params;
   if (!isValidBroadcastId(fileId)) {
     return new Response('Invalid broadcast id.', { status: 400 });
@@ -50,6 +53,8 @@ export async function POST(req: Request, ctx: RouteContext<'/api/chat/[fileId]'>
 
   const parsed = await parseChatRequest(req);
   if (parsed instanceof Response) return parsed;
+
+  updateActiveObservation({ input: latestUserText(parsed.messages), metadata: { fileId } });
 
   let transcript: string | null;
   let headlines: HeadlineItem[];
@@ -70,3 +75,5 @@ export async function POST(req: Request, ctx: RouteContext<'/api/chat/[fileId]'>
 
   return streamChatResponse(broadcastSystemPrompt(transcript, storyList, parsed.timezone), parsed.messages);
 }
+
+export const POST = observeChatRoute('broadcast-chat', handleBroadcastChat);

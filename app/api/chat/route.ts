@@ -1,10 +1,9 @@
-import { observe, updateActiveObservation } from '@langfuse/tracing';
-import { after } from 'next/server';
+import { updateActiveObservation } from '@langfuse/tracing';
 
 import { getInjection } from '@/di/container';
-import { langfuseSpanProcessor } from '@/instrumentation.langfuse';
 import { latestUserText, parseChatRequest, streamChatResponse, type ChatSource } from '@/lib/chat-stream';
 import { formatDateTimeContext } from '@/lib/dates';
+import { observeChatRoute } from '@/lib/observe-chat-route';
 
 /**
  * Desk assistant: a knowledge-base assistant grounded ONLY in the user's library
@@ -100,15 +99,7 @@ async function handleChat(req: Request): Promise<Response> {
 
   sections.push('', formatDateTimeContext(new Date(), parsed.timezone));
 
-  // Serverless: force the isolated Langfuse provider to flush after the response
-  // finishes streaming, before the invocation freezes and drops queued spans.
-  after(() => langfuseSpanProcessor.forceFlush());
-
   return streamChatResponse(sections.join('\n'), parsed.messages, sources);
 }
 
-export const POST = observe(handleChat, {
-  name: 'desk-assistant-chat',
-  captureInput: false,
-  captureOutput: false,
-});
+export const POST = observeChatRoute('desk-assistant-chat', handleChat);

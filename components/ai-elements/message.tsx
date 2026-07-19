@@ -21,7 +21,7 @@ export type MessageProps = HTMLAttributes<HTMLDivElement> & {
 export const Message = ({ className, from, ...props }: MessageProps) => (
   <div
     className={cn(
-      'group flex w-full max-w-[95%] flex-col gap-2',
+      'group flex w-full max-w-[95%] min-w-0 flex-col gap-2',
       from === 'user' ? 'is-user ml-auto justify-end' : 'is-assistant',
       className,
     )}
@@ -69,6 +69,7 @@ export const MessageAction = ({
   disabled,
   'aria-label': ariaLabel,
   'aria-pressed': ariaPressed,
+  'aria-expanded': ariaExpanded,
   type = 'button',
   ...props
 }: MessageActionProps) => {
@@ -91,6 +92,7 @@ export const MessageAction = ({
             onClick={onClick}
             aria-label={ariaLabel}
             aria-pressed={ariaPressed}
+            aria-expanded={ariaExpanded}
             className={cn(buttonVariants({ variant, size }), className)}
           >
             {content}
@@ -113,6 +115,7 @@ export const MessageAction = ({
       disabled={disabled}
       aria-label={ariaLabel}
       aria-pressed={ariaPressed}
+      aria-expanded={ariaExpanded}
       {...props}
     >
       {content}

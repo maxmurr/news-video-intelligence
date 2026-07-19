@@ -5,10 +5,13 @@ import {
   smoothStream,
   streamText,
   toUIMessageStream,
-  type ChatStatus,
   type UIMessage,
   validateUIMessages,
 } from 'ai';
+import { context, trace } from '@opentelemetry/api';
+import { getActiveTraceId, updateActiveObservation } from '@langfuse/tracing';
+import { langfuseSpanProcessor } from '@/instrumentation.langfuse';
+import { deferSpanEndToStream } from '@/lib/observe-chat-route';
 import { MODELS } from '@/lib/models';
 import { resolveTimeZone } from '@/lib/dates';
 
@@ -63,35 +66,6 @@ export function latestUserText(messages: UIMessage[]): string {
   return '';
 }
 
-function findLast<T>(items: readonly T[], predicate: (item: T) => boolean): T | undefined {
-  for (let i = items.length - 1; i >= 0; i--) {
-    if (predicate(items[i])) return items[i];
-  }
-  return undefined;
-}
-
-/**
- * Whether the chat UI should show a "thinking / checking" shimmer.
- * True while the request is submitted, and while streaming until the latest
- * assistant message has any text or reasoning content.
- */
-export function shouldShowLoadingShimmer(status: ChatStatus, messages: UIMessage[]): boolean {
-  if (status === 'submitted') return true;
-
-  if (status === 'streaming') {
-    const lastAssistant = findLast(messages, message => message.role === 'assistant');
-    if (!lastAssistant) return true;
-
-    const hasContent = lastAssistant.parts.some(
-      part => (part.type === 'text' || part.type === 'reasoning') && part.text.length > 0,
-    );
-
-    return !hasContent;
-  }
-
-  return false;
-}
-
 const STREAM_ERROR = 'The assistant hit an error answering. Try asking again.';
 
 /** Streams a chat completion under the given system prompt as a UI message stream. */
@@ -100,6 +74,30 @@ export async function streamChatResponse(
   messages: UIMessage[],
   sources: ChatSource[] = [],
 ): Promise<Response> {
+  // Captured here, inside the observe() context, before the handler returns:
+  //  - traceId stamps the assistant message so the client can score this trace.
+  //  - rootSpan lets us write the streamed answer back to the root observation
+  //    once the stream settles; the handler (and its active context) is long gone
+  //    by onFinish, so the trace output would otherwise stay empty. The route's
+  //    observe() uses endOnExit:false to keep this span open until we end it here.
+  const traceId = getActiveTraceId();
+  const generateTraceMessageId = traceId ? () => traceId : undefined;
+  const rootSpan = trace.getActiveSpan();
+
+  // Whichever of onFinish/onError/onAbort settles the stream first ends the root
+  // span exactly once; the guard also stops a late second callback from ending an
+  // already-ended span or clobbering the recorded output.
+  let ended = false;
+  const setTraceOutput = (output: string) => {
+    if (!rootSpan || ended) return;
+    ended = true;
+    context.with(trace.setSpan(context.active(), rootSpan), () => updateActiveObservation({ output }));
+    rootSpan.end();
+    // The stream settles after the route's after() flush has already run, so flush
+    // again here — otherwise this just-ended root span waits for the next batch.
+    void langfuseSpanProcessor.forceFlush();
+  };
+
   const result = streamText({
     model: MODELS.chat,
     system,
@@ -109,9 +107,16 @@ export async function streamChatResponse(
       delayInMs: 20,
       chunking: 'word',
     }),
+    onFinish: ({ text }) => setTraceOutput(text),
+    onError: () => setTraceOutput(STREAM_ERROR),
+    // A client abort (stop button, navigation) fires neither onFinish nor onError,
+    // so without this the root span never ends and the trace is lost. Record any
+    // text streamed before the abort.
+    onAbort: ({ steps }) => setTraceOutput(steps.map(step => step.text).join('')),
   });
 
   const stream = createUIMessageStream({
+    generateId: generateTraceMessageId,
     execute({ writer }) {
       for (const source of sources) {
         writer.write({
@@ -125,11 +130,16 @@ export async function streamChatResponse(
         toUIMessageStream({
           stream: result.stream,
           onError: () => STREAM_ERROR,
+          generateMessageId: generateTraceMessageId,
         }),
       );
     },
     onError: () => STREAM_ERROR,
   });
+
+  // Setup succeeded, so a callback is guaranteed to settle the stream and end the
+  // span; claim it from the route wrapper (which would otherwise end it on return).
+  if (rootSpan) deferSpanEndToStream(rootSpan);
 
   return createUIMessageStreamResponse({ stream });
 }

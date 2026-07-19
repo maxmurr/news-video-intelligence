@@ -14,7 +14,8 @@ import { PromptInput, PromptInputSubmit, PromptInputTextarea } from '@/component
 import { Suggestion, Suggestions } from '@/components/ai-elements/suggestion';
 import { AssistantMessageActions, assistantMessageText } from '@/components/chat/assistant-message-actions';
 import { UserMessage, userMessageText } from '@/components/chat/user-message';
-import { shouldShowLoadingShimmer } from '@/lib/chat-stream';
+import { submitChatFeedback } from '@/lib/chat-feedback';
+import { shouldShowLoadingShimmer } from '@/lib/chat-loading';
 import { browserTimeZone } from '@/lib/dates';
 import type { StoryCard } from '@/lib/broadcast-types';
 import { AnswerWithCitations } from './timestamp';
@@ -291,7 +292,12 @@ export function ChatPanel({
                       ) : null,
                     )}
                   </MessageContent>
-                  {!isStreamingAssistant && responseText ? <AssistantMessageActions text={responseText} /> : null}
+                  {!isStreamingAssistant && responseText ? (
+                    <AssistantMessageActions
+                      text={responseText}
+                      onFeedbackAction={feedback => submitChatFeedback(message.id, feedback)}
+                    />
+                  ) : null}
                 </Message>
               );
             })}

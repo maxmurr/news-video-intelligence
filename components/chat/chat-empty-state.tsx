@@ -24,7 +24,8 @@ import {
 } from '@/components/chat/assistant-message-actions';
 import { UserMessage, userMessageText } from '@/components/chat/user-message';
 import { Button } from '@/components/ui/button';
-import { shouldShowLoadingShimmer } from '@/lib/chat-stream';
+import { submitChatFeedback } from '@/lib/chat-feedback';
+import { shouldShowLoadingShimmer } from '@/lib/chat-loading';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -334,7 +335,11 @@ export function ChatEmptyState({ broadcasts }: { broadcasts: BroadcastSummary[] 
                     )}
                   </MessageContent>
                   {!isStreamingAssistant && responseText ? (
-                    <AssistantMessageActions text={responseText} sourceCount={sourceCount} />
+                    <AssistantMessageActions
+                      text={responseText}
+                      sourceCount={sourceCount}
+                      onFeedbackAction={feedback => submitChatFeedback(message.id, feedback)}
+                    />
                   ) : null}
                 </Message>
               );
