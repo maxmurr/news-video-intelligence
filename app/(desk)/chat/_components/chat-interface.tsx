@@ -47,9 +47,9 @@ const BroadcastPicker = dynamic(() => import('./chat-broadcast-picker').then(mod
 });
 
 const GENERAL_STARTERS = [
-  'How does grounded Q&A work?',
-  'What can I upload?',
-  'How do timestamp citations work?',
+  'Was there any news about wildfires? Please summarize it.',
+  'Where did the wildfires happen?',
+  'Was the cause mentioned?',
 ] as const;
 
 interface ChatAskFormValues {

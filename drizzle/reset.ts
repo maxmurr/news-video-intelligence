@@ -4,6 +4,7 @@
  * this only touches the tables Drizzle owns, so a reset never disturbs
  * in-flight workflow state.
  */
+import 'dotenv/config';
 import { Pool } from 'pg';
 
 const APP_TABLES = [
