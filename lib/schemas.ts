@@ -32,15 +32,6 @@ export interface HeadlineItem {
   summary: string;
 }
 
-export interface FrameItem {
-  startTime: string;
-  endTime: string;
-  headline: string;
-  frameTime: string;
-  reason: string;
-  frameUrl: string;
-}
-
 /**
  * The numbered story-list block every prompt that references detected stories
  * uses (headline generation, frame picking, chat grounding). One owner so the
