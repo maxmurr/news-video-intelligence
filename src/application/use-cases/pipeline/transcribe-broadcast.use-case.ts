@@ -35,7 +35,6 @@ export const transcribeBroadcastUseCase =
       const audio = await mediaProcessorService.extractSpeechAudio(broadcast.filename);
       const text = normalizeTranscript(await transcriptionService.transcribeAudio(audio)).trim();
 
-      // Reject a refusal/preamble as a retryable failure instead of persisting garbage.
       if (!isValidTranscript(text)) {
         throw new Error(
           `Transcript for ${broadcast.filename} does not start with a timestamp. Got: ${text.slice(0, 80)}`,

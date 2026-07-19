@@ -4,7 +4,6 @@ import type { IInstrumentationService } from '@/src/application/services/instrum
 import type { IRerankService } from '@/src/application/services/rerank.service.interface';
 import type { TranscriptChunkHit } from '@/src/entities/models/transcript-chunk';
 
-/** How many chunks library retrieval feeds into the desk assistant by default. */
 export const RETRIEVAL_TOP_K = 20;
 
 /**

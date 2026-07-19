@@ -41,7 +41,6 @@ export const generateHeadlinesUseCase =
 
       const copy = await headlineWriterService.writeHeadlines(stories, transcript.text);
 
-      // Each item aligns 1:1 with its story, inheriting the story's time span.
       const items = copy.map((item, i) => ({
         startTime: stories[i]?.startTime,
         endTime: stories[i]?.endTime,

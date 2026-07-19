@@ -42,7 +42,6 @@ export class FramePickerService implements IFramePickerService {
           await unlink(videoPath).catch(() => {});
         }
 
-        // Length is pinned so each frame pick lines up 1:1 with the headlines.
         const framePicksSchema = z.object({
           items: z
             .array(

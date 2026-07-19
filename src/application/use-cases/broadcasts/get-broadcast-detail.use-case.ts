@@ -44,7 +44,6 @@ async function resolveRun(
 
 export type IGetBroadcastDetailUseCase = ReturnType<typeof getBroadcastDetailUseCase>;
 
-/** Full analysis state for one broadcast, or null when it doesn't exist. */
 export const getBroadcastDetailUseCase =
   (
     instrumentationService: IInstrumentationService,

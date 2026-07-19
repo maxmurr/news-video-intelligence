@@ -28,7 +28,6 @@ const inputSchema = z.string().min(1);
 
 export type IGetBroadcastDetailController = ReturnType<typeof getBroadcastDetailController>;
 
-/** Full detail for one broadcast, or null when it doesn't exist. */
 export const getBroadcastDetailController =
   (instrumentationService: IInstrumentationService, getBroadcastDetailUseCase: IGetBroadcastDetailUseCase) =>
   (broadcastId: unknown): Promise<BroadcastDetail | null> => {

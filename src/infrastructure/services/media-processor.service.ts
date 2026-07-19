@@ -62,7 +62,6 @@ export class MediaProcessorService implements IMediaProcessorService {
     );
   }
 
-  /** Small downscaled proxy of the video for model calls that watch the footage. */
   async createFramePreview(filename: string): Promise<Uint8Array> {
     return this.instrumentationService.startSpan(
       { name: 'MediaProcessorService > createFramePreview', op: 'function' },

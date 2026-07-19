@@ -1,12 +1,10 @@
 import { TIMESTAMP_PATTERN, timestampToSeconds } from '@/lib/timestamps';
 
-/** A grounded broadcast with the moments the assistant used. */
 export interface ChatMessageSource {
   sourceId: string;
   title: string;
   /** Broadcast detail path without a seek query. */
   href: string;
-  /** Unique start times, ascending. */
   timestamps: string[];
 }
 
@@ -71,12 +69,10 @@ export function collectMessageSources(
   }));
 }
 
-/** Unique grounded broadcasts — the sources badge count. */
 export function countMessageSources(parts: ReadonlyArray<{ type: string; [key: string]: unknown }>): number {
   return collectMessageSources(parts).length;
 }
 
-/** Detail URL that opens a broadcast at a grounded moment. */
 export function broadcastSeekHref(sourceId: string, timestamp: string): string {
   const params = new URLSearchParams({ t: timestamp });
   return `/v/${encodeURIComponent(sourceId)}?${params.toString()}`;

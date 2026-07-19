@@ -11,9 +11,4 @@ const pool = new Pool({
 });
 export const db = drizzle(pool, { schema });
 
-// Export Transaction type to be used in repositories
-export type Transaction = PgTransaction<
-  NodePgQueryResultHKT,
-  typeof schema,
-  ExtractTablesWithRelations<typeof schema>
->;
+export type Transaction = PgTransaction<NodePgQueryResultHKT, typeof schema, ExtractTablesWithRelations<typeof schema>>;

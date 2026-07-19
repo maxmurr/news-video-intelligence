@@ -8,7 +8,6 @@ import { loadBroadcastAnalysis, type BroadcastAnalysis } from './broadcast-analy
 
 export type IGetBroadcastSummariesUseCase = ReturnType<typeof getBroadcastSummariesUseCase>;
 
-/** Analysis state for every broadcast, newest upload first. */
 export const getBroadcastSummariesUseCase =
   (
     instrumentationService: IInstrumentationService,

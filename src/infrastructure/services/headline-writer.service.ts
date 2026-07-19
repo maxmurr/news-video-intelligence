@@ -17,7 +17,6 @@ export class HeadlineWriterService implements IHeadlineWriterService {
     return this.instrumentationService.startSpan(
       { name: 'HeadlineWriterService > writeHeadlines', op: 'ai.run' },
       async () => {
-        // Length is pinned so each item lines up 1:1 with the input stories.
         const headlinesSchema = z.object({
           items: z
             .array(

@@ -14,6 +14,5 @@ export interface RerankedDocument {
  * each document together, so it catches relevance that asymmetric cosine misses.
  */
 export interface IRerankService {
-  /** Reorders `documents` by relevance to `query`, most relevant first, keeping at most `topN`. */
   rerank(query: string, documents: string[], topN: number): Promise<RerankedDocument[]>;
 }

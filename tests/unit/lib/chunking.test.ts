@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { CHUNKING, chunkTranscript, estimateTokens } from '@/lib/chunking';
 import { secondsToTimestamp, TIMESTAMP_PATTERN } from '@/lib/timestamps';
 
-/** A transcript with one timestamped line per word, spaced `interval` seconds. */
 function transcriptOf(words: string[], interval = 10): string {
   return words.map((word, i) => `${secondsToTimestamp(i * interval)} ${word}`).join('\n');
 }
@@ -22,7 +21,6 @@ describe('chunkTranscript', () => {
   it('overlaps consecutive chunks so a boundary line survives in both', () => {
     const chunks = chunkTranscript(transcriptOf(['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7'], 10));
 
-    // The 00:30 line ends chunk 0 and opens chunk 1.
     expect(chunks[0].content).toContain('w3');
     expect(chunks[1].content).toContain('w3');
   });

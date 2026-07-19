@@ -8,9 +8,5 @@ export interface IMediaProcessorService {
   /** Mono speech-optimized audio track of the upload, small enough for one inline model request. */
   extractSpeechAudio(filename: string): Promise<Uint8Array>;
   durationSeconds(filename: string): Promise<number>;
-  /**
-   * Extracts the frame at `atSeconds` into the broadcast's frame set under
-   * `frameName` and returns the public URL it is served from.
-   */
   extractFrame(filename: string, atSeconds: number, frameName: string): Promise<string>;
 }

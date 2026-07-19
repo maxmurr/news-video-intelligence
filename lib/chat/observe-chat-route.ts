@@ -14,7 +14,6 @@ import { langfuseSpanProcessor } from '@/instrumentation.langfuse';
  */
 const streamOwnedSpans = new WeakSet<Span>();
 
-/** Called by streamChatResponse to take ownership of ending the active span. */
 export function deferSpanEndToStream(span: Span): void {
   streamOwnedSpans.add(span);
 }

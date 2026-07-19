@@ -17,7 +17,6 @@ function hitTargetClassName(className?: string) {
   );
 }
 
-/** Concatenate text parts for display, clipboard, and edit. */
 export function userMessageText(parts: ReadonlyArray<{ type: string; text?: string }>): string {
   return parts
     .flatMap(part => (part.type === 'text' && typeof part.text === 'string' ? [part.text] : []))
@@ -171,7 +170,6 @@ export function EditingUserMessage({
   );
 }
 
-/** Composes view vs edit variants; call sites can also use the variants directly. */
 export function UserMessage({
   text,
   disabled = false,

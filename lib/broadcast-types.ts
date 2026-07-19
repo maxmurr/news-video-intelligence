@@ -111,12 +111,10 @@ export interface BroadcastDetail extends BroadcastSummary {
  */
 export type BroadcastPageInitial = BroadcastDetail & { transcript: null };
 
-/** Strip the transcript body for the broadcast page client boundary. */
 export function toBroadcastPageInitial(detail: BroadcastDetail): BroadcastPageInitial {
   return { ...detail, transcript: null };
 }
 
-/** Build the detail wire fields that depend on transcript text. */
 export function transcriptWireFields(
   transcript: string | null,
 ): Pick<BroadcastDetail, 'transcript' | 'transcriptLineCount'> {

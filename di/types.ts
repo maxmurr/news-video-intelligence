@@ -48,7 +48,6 @@ import type { ITranscribeBroadcastController } from '@/src/interface-adapters/co
 import type { ISaveRunController } from '@/src/interface-adapters/controllers/runs/save-run.controller';
 
 export const DI_SYMBOLS = {
-  // Services
   IInstrumentationService: Symbol.for('IInstrumentationService'),
   ICrashReporterService: Symbol.for('ICrashReporterService'),
   IFileStorageService: Symbol.for('IFileStorageService'),
@@ -61,7 +60,6 @@ export const DI_SYMBOLS = {
   IEmbeddingService: Symbol.for('IEmbeddingService'),
   IRerankService: Symbol.for('IRerankService'),
 
-  // Repositories
   IBroadcastsRepository: Symbol.for('IBroadcastsRepository'),
   ITranscriptsRepository: Symbol.for('ITranscriptsRepository'),
   ITranscriptChunksRepository: Symbol.for('ITranscriptChunksRepository'),
@@ -70,7 +68,6 @@ export const DI_SYMBOLS = {
   IFramesRepository: Symbol.for('IFramesRepository'),
   IRunsRepository: Symbol.for('IRunsRepository'),
 
-  // Use Cases — broadcasts
   ICreateBroadcastUseCase: Symbol.for('ICreateBroadcastUseCase'),
   IGetBroadcastByFilenameUseCase: Symbol.for('IGetBroadcastByFilenameUseCase'),
   IGetBroadcastByIdUseCase: Symbol.for('IGetBroadcastByIdUseCase'),
@@ -81,17 +78,14 @@ export const DI_SYMBOLS = {
   IGetChatContextUseCase: Symbol.for('IGetChatContextUseCase'),
   ISearchLibraryUseCase: Symbol.for('ISearchLibraryUseCase'),
 
-  // Use Cases — pipeline stages
   ITranscribeBroadcastUseCase: Symbol.for('ITranscribeBroadcastUseCase'),
   IEmbedTranscriptUseCase: Symbol.for('IEmbedTranscriptUseCase'),
   IDetectStoriesUseCase: Symbol.for('IDetectStoriesUseCase'),
   IGenerateHeadlinesUseCase: Symbol.for('IGenerateHeadlinesUseCase'),
   IExtractFramesUseCase: Symbol.for('IExtractFramesUseCase'),
 
-  // Use Cases — runs
   ISaveRunUseCase: Symbol.for('ISaveRunUseCase'),
 
-  // Controllers — broadcasts
   ICreateBroadcastController: Symbol.for('ICreateBroadcastController'),
   IGetBroadcastByFilenameController: Symbol.for('IGetBroadcastByFilenameController'),
   IGetBroadcastByIdController: Symbol.for('IGetBroadcastByIdController'),
@@ -102,19 +96,16 @@ export const DI_SYMBOLS = {
   IGetChatContextController: Symbol.for('IGetChatContextController'),
   ISearchLibraryController: Symbol.for('ISearchLibraryController'),
 
-  // Controllers — pipeline stages
   ITranscribeBroadcastController: Symbol.for('ITranscribeBroadcastController'),
   IEmbedTranscriptController: Symbol.for('IEmbedTranscriptController'),
   IDetectStoriesController: Symbol.for('IDetectStoriesController'),
   IGenerateHeadlinesController: Symbol.for('IGenerateHeadlinesController'),
   IExtractFramesController: Symbol.for('IExtractFramesController'),
 
-  // Controllers — runs
   ISaveRunController: Symbol.for('ISaveRunController'),
 };
 
 export interface DI_RETURN_TYPES {
-  // Services
   IInstrumentationService: IInstrumentationService;
   ICrashReporterService: ICrashReporterService;
   IFileStorageService: IFileStorageService;
@@ -127,7 +118,6 @@ export interface DI_RETURN_TYPES {
   IEmbeddingService: IEmbeddingService;
   IRerankService: IRerankService;
 
-  // Repositories
   IBroadcastsRepository: IBroadcastsRepository;
   ITranscriptsRepository: ITranscriptsRepository;
   ITranscriptChunksRepository: ITranscriptChunksRepository;
@@ -136,7 +126,6 @@ export interface DI_RETURN_TYPES {
   IFramesRepository: IFramesRepository;
   IRunsRepository: IRunsRepository;
 
-  // Use Cases — broadcasts
   ICreateBroadcastUseCase: ICreateBroadcastUseCase;
   IGetBroadcastByFilenameUseCase: IGetBroadcastByFilenameUseCase;
   IGetBroadcastByIdUseCase: IGetBroadcastByIdUseCase;
@@ -147,17 +136,14 @@ export interface DI_RETURN_TYPES {
   IGetChatContextUseCase: IGetChatContextUseCase;
   ISearchLibraryUseCase: ISearchLibraryUseCase;
 
-  // Use Cases — pipeline stages
   ITranscribeBroadcastUseCase: ITranscribeBroadcastUseCase;
   IEmbedTranscriptUseCase: IEmbedTranscriptUseCase;
   IDetectStoriesUseCase: IDetectStoriesUseCase;
   IGenerateHeadlinesUseCase: IGenerateHeadlinesUseCase;
   IExtractFramesUseCase: IExtractFramesUseCase;
 
-  // Use Cases — runs
   ISaveRunUseCase: ISaveRunUseCase;
 
-  // Controllers — broadcasts
   ICreateBroadcastController: ICreateBroadcastController;
   IGetBroadcastByFilenameController: IGetBroadcastByFilenameController;
   IGetBroadcastByIdController: IGetBroadcastByIdController;
@@ -168,13 +154,11 @@ export interface DI_RETURN_TYPES {
   IGetChatContextController: IGetChatContextController;
   ISearchLibraryController: ISearchLibraryController;
 
-  // Controllers — pipeline stages
   ITranscribeBroadcastController: ITranscribeBroadcastController;
   IEmbedTranscriptController: IEmbedTranscriptController;
   IDetectStoriesController: IDetectStoriesController;
   IGenerateHeadlinesController: IGenerateHeadlinesController;
   IExtractFramesController: IExtractFramesController;
 
-  // Controllers — runs
   ISaveRunController: ISaveRunController;
 }

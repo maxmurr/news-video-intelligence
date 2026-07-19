@@ -85,7 +85,6 @@ export function resolveTimeZone(value: unknown): string {
 
 type ZoneParts = { year: string; month: string; day: string; hour: string; minute: string };
 
-/** Wall-clock calendar/clock fields for `date` as seen in `timeZone`. */
 function zoneParts(date: Date, timeZone: string): ZoneParts {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone,

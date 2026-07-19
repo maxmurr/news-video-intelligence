@@ -4,13 +4,11 @@
  * must parse/format through this module so the grammar lives in one place.
  */
 
-/** A full timestamp string: MM:SS or H:MM:SS. */
 export const TIMESTAMP_PATTERN = /^(?:\d{1,2}:)?\d{1,2}:\d{2}$/;
 
 /** The same grammar without anchors, for embedding in larger patterns. */
 export const TIMESTAMP_SOURCE = TIMESTAMP_PATTERN.source.slice(1, -1);
 
-/** A timestamp at the start of a line (MM:SS or H:MM:SS). */
 const LINE_TIMESTAMP = /^((?:\d{1,2}:)?\d{1,2}:\d{2})\b/;
 
 export function timestampToSeconds(timestamp: string): number {
@@ -26,7 +24,6 @@ export function secondsToTimestamp(totalSeconds: number): string {
   return hours > 0 ? `${hours}:${mmss}` : mmss;
 }
 
-/** The timestamp leading a transcript line, or null if the line has none. */
 export function lineTimestamp(line: string): string | null {
   return line.match(LINE_TIMESTAMP)?.[1] ?? null;
 }
@@ -43,7 +40,6 @@ export function normalizeTranscript(transcript: string): string {
     .join('\n');
 }
 
-/** All timestamps that start a line in a transcript, in order. */
 export function transcriptTimestamps(transcript: string): string[] {
   return [...transcript.matchAll(new RegExp(LINE_TIMESTAMP.source, 'gm'))].map(m => m[1]);
 }
@@ -54,7 +50,6 @@ export interface TranscriptLine {
   text: string;
 }
 
-/** Split a timestamped transcript into seekable rows. */
 export function parseTranscriptLines(transcript: string): TranscriptLine[] {
   return transcript
     .split('\n')
@@ -77,7 +72,6 @@ export function countTimestampedTranscriptLines(transcript: string): number {
   return count;
 }
 
-/** Transcript lines whose leading timestamp falls within [start, end]. */
 export function transcriptSpan(transcript: string, start: string, end: string): string {
   const startSec = timestampToSeconds(start);
   const endSec = timestampToSeconds(end);

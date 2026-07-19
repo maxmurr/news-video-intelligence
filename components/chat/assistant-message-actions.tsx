@@ -275,7 +275,6 @@ export function AssistantMessageActions({
   );
 }
 
-/** Concatenate text parts for clipboard copy. */
 export function assistantMessageText(parts: ReadonlyArray<{ type: string; text?: string }>): string {
   return parts
     .flatMap(part => (part.type === 'text' && typeof part.text === 'string' ? [part.text] : []))

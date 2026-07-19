@@ -1,4 +1,3 @@
-/** Copy plain text to the clipboard. Throws if the Clipboard API is unavailable. */
 export async function copyText(text: string): Promise<void> {
   if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
     throw new Error('Clipboard unavailable');
@@ -35,7 +34,6 @@ export async function shareOrCopyUrl({
   return 'copied';
 }
 
-/** Canonical broadcast page URL (no tab/query noise). */
 export function broadcastShareUrl(
   fileId: string,
   origin = typeof window !== 'undefined' ? window.location.origin : '',

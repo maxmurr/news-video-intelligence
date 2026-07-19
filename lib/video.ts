@@ -11,7 +11,6 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-/** Duration of a video in (fractional) seconds, via ffprobe. */
 export async function videoDurationSeconds(videoPath: string): Promise<number> {
   const { stdout } = await execFileAsync('ffprobe', [
     '-v',
