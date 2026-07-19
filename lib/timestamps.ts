@@ -72,6 +72,27 @@ export function countTimestampedTranscriptLines(transcript: string): number {
   return count;
 }
 
+/**
+ * Cap a transcript at the real media length. ASR models hallucinate trailing
+ * lines past the end of the audio (runaway timestamps over closing silence or
+ * music), and those lines describe footage the video does not contain — a click
+ * on them seeks to nothing playable, and they leak into stories, embeddings, and
+ * citations downstream. Line timestamps are monotonic, so the first line that
+ * starts past the duration marks where the real footage ended: drop it and
+ * everything after. A probe that yields no usable duration (ffprobe can print
+ * "N/A" or nothing) leaves the transcript untouched rather than truncating it.
+ */
+export function clampTranscriptToDuration(transcript: string, durationSeconds: number): string {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return transcript;
+  const kept: string[] = [];
+  for (const line of transcript.split('\n')) {
+    const timestamp = lineTimestamp(line.trimEnd());
+    if (timestamp !== null && timestampToSeconds(timestamp) > durationSeconds) break;
+    kept.push(line);
+  }
+  return kept.join('\n').trimEnd();
+}
+
 export function transcriptSpan(transcript: string, start: string, end: string): string {
   const startSec = timestampToSeconds(start);
   const endSec = timestampToSeconds(end);

@@ -36,6 +36,15 @@ it('transcribes once and serves the stored transcript on the second call', async
   expect(again.data.text).toBe(fresh.data.text);
 });
 
+it('drops ASR-hallucinated transcript lines past the video duration', async () => {
+  // The mock transcript ends with a 10:30 line, past the mock media processor's
+  // 600s (10:00) duration; it must not survive into the stored transcript.
+  const { data: transcript } = await transcribe(broadcastId);
+  expect(transcript.text).not.toContain('10:30');
+  expect(transcript.text).not.toContain('Hallucinated');
+  expect(transcript.text.trimEnd()).toMatch(/record high this year\.$/);
+});
+
 it('requires a transcript before detecting stories', async () => {
   await expect(detectStories(broadcastId)).rejects.toBeInstanceOf(NotFoundError);
 });

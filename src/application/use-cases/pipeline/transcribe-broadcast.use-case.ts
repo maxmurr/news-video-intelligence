@@ -1,4 +1,4 @@
-import { lineTimestamp, normalizeTranscript } from '@/lib/timestamps';
+import { clampTranscriptToDuration, lineTimestamp, normalizeTranscript } from '@/lib/timestamps';
 import type { IBroadcastsRepository } from '@/src/application/repositories/broadcasts.repository.interface';
 import type { ITranscriptsRepository } from '@/src/application/repositories/transcripts.repository.interface';
 import type { IInstrumentationService } from '@/src/application/services/instrumentation.service.interface';
@@ -33,7 +33,13 @@ export const transcribeBroadcastUseCase =
       if (existing) return { data: existing, cached: true };
 
       const audio = await mediaProcessorService.extractSpeechAudio(broadcast.filename);
-      const text = normalizeTranscript(await transcriptionService.transcribeAudio(audio)).trim();
+      // A failed duration probe must not sink a successful transcription: the
+      // clamp is an enhancement, and 0 makes it a no-op (same as pre-change).
+      const [rawTranscript, durationSeconds] = await Promise.all([
+        transcriptionService.transcribeAudio(audio),
+        mediaProcessorService.durationSeconds(broadcast.filename).catch(() => 0),
+      ]);
+      const text = normalizeTranscript(rawTranscript).trim();
 
       if (!isValidTranscript(text)) {
         throw new Error(
@@ -41,7 +47,13 @@ export const transcribeBroadcastUseCase =
         );
       }
 
-      const saved = await transcriptsRepository.saveTranscript({ broadcastId: broadcast.id, text });
+      // Validate before clamping: clamping a refusal would just truncate garbage.
+      // The clamp drops ASR-hallucinated lines past the real end so they never
+      // reach the transcript UI, story segmentation, embeddings, or citations.
+      const saved = await transcriptsRepository.saveTranscript({
+        broadcastId: broadcast.id,
+        text: clampTranscriptToDuration(text, durationSeconds),
+      });
       return { data: saved, cached: false };
     });
   };
