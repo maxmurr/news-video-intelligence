@@ -247,13 +247,16 @@ export function BroadcastProvider({ initial, children }: { initial: BroadcastPag
   React.useEffect(() => {
     transcriptLoadedForIdRef.current = null;
     transcriptFetchInFlightRef.current = false;
+    /* eslint-disable react-hooks/set-state-in-effect -- reset transcript state when the broadcast id changes */
     setTranscript(null);
     setTranscriptLoaded(false);
     setTranscriptLineCount(initial.transcriptLineCount);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [broadcast.id, initial.transcriptLineCount]);
 
   React.useEffect(() => {
     if (tab !== 'transcript' || !transcriptReady) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetches transcript when the tab first opens
     void loadTranscript();
   }, [tab, transcriptReady, loadTranscript]);
 
@@ -311,7 +314,9 @@ export function BroadcastProvider({ initial, children }: { initial: BroadcastPag
   }, []);
 
   const askDockOpenRef = React.useRef(askDockOpen);
-  askDockOpenRef.current = askDockOpen;
+  React.useEffect(() => {
+    askDockOpenRef.current = askDockOpen;
+  });
 
   const toggleAskDock = React.useCallback(() => {
     if (askDockOpenRef.current) closeAskDock();
@@ -419,6 +424,7 @@ export function BroadcastProvider({ initial, children }: { initial: BroadcastPag
     }
     if (deepLinkSeekSeconds === null) return;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs desk chrome to the ?t= deep-link param
     setActiveSeconds(deepLinkSeekSeconds);
     const stories = storiesRef.current;
     const index = activeStoryIndex(stories, deepLinkSeekSeconds);
