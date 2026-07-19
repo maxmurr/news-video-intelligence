@@ -1,4 +1,5 @@
 ---
+contentType: Reference
 name: Broadcast Desk
 description: AI Q&A over news video with timestamps you can trust.
 colors:
@@ -94,19 +95,19 @@ components:
     height: '20px'
 ---
 
-# Design System: Broadcast Desk
+# Design system: Broadcast Desk
 
-## 1. Overview
+Broadcast Desk is a research tool, not a magazine and not a chat novelty. This reference defines palette, type, elevation, and component rules so timestamps, headlines, and footage stay primary.
 
-**Creative North Star: "The Evidence Desk"**
+## 1. Creative north star: the evidence desk
 
-Broadcast Desk is a research tool, not a magazine and not a chat novelty. The visual system should disappear into the task: upload a broadcast, scan stories, ask a question, jump to the clip. Surfaces stay quiet so timestamps, headlines, and footage do the talking. Density and pace take cues from Linear — compact controls, fast state changes, no decorative chrome.
+The visual system should disappear into the task: upload a broadcast, scan stories, ask a question, jump to the clip. Keep surfaces quiet so timestamps, headlines, and footage stay readable. Density and pace take cues from Linear: compact controls, fast state changes, no decorative chrome.
 
-The palette is restrained neutrals: pure white paper, desk charcoal for primary actions, mist for quiet fills. Typography pairs a sharp sans (Geist) for UI with a serif (Newsreader) reserved for story-level display — never for buttons, labels, or data. Elevation is flat by default; structure comes from hairline borders and subtle rings, not stacked shadows.
+The palette is restrained neutrals: pure white paper, desk charcoal for primary actions, mist for quiet fills. Typography pairs a sharp sans (Geist) for UI with a serif (Newsreader) reserved for story-level display, never for buttons, labels, or data. Elevation is flat by default; structure comes from hairline borders and subtle rings, not stacked shadows.
 
 This system explicitly rejects generic AI chat dashboards (purple glow, soft blobs, empty “Ask anything” states), broadsheet / newspaper pastiche (dense columns, hairline rules, “edition” cosplay), and consumer video apps (YouTube-style theater, recommendations, entertainment chrome).
 
-**Key Characteristics:**
+**Key characteristics:**
 
 - Restrained neutrals; one ink-dark primary used sparingly for action
 - Compact, decisive controls (32px default height)
@@ -116,11 +117,11 @@ This system explicitly rejects generic AI chat dashboards (purple glow, soft blo
 
 ## 2. Colors
 
-A monochrome research palette: paper, ink, and charcoal — chroma reserved for destructive alerts only.
+A monochrome research palette: paper, ink, and charcoal. Reserve chroma for destructive alerts only.
 
 ### Primary
 
-- **Desk charcoal** (`oklch(0.205 0 0)`): Primary buttons, key selected states, and the darkest interactive fills. Rarity is the point — not a wash across the UI.
+- **Desk charcoal** (`oklch(0.205 0 0)`): Primary buttons, key selected states, and the darkest interactive fills. Rarity is the point: not a wash across the UI.
 
 ### Neutral
 
@@ -134,51 +135,51 @@ A monochrome research palette: paper, ink, and charcoal — chroma reserved for 
 
 ### Tertiary
 
-- **Alert red** (`oklch(0.577 0.245 27.325)`): Destructive and invalid states only — never brand decoration.
+- **Alert red** (`oklch(0.577 0.245 27.325)`): Destructive and invalid states only, never brand decoration.
 
-### Named Rules
+### Named rules
 
-**The One Ink Rule.** Desk charcoal appears on primary actions and hard selection — never as ambient background tint or decorative accent.
+**The One Ink Rule.** Desk charcoal appears on primary actions and hard selection, never as ambient background tint or decorative accent.
 
 **The No Neon Rule.** No purple, glow, or saturated brand washes. The only chroma on the desk is alert red for errors.
 
 ## 3. Typography
 
-**Display Font:** Newsreader (with ui-serif, Georgia)
-**Body Font:** Geist (with ui-sans-serif, system-ui)
+**Display font:** Newsreader (with ui-serif, Georgia)
+**Body font:** Geist (with ui-sans-serif, system-ui)
 
-**Character:** Geist carries the desk — dense, technical, fast. Newsreader marks story headlines and page display only, so editorial voice never leaks into tool chrome.
+**Character:** Geist sets the desk voice: dense, technical, fast. Newsreader marks story headlines and page display only, so editorial voice never leaks into tool chrome.
 
 ### Hierarchy
 
-- **Display** (600, ~3rem / `text-4xl`–`text-5xl`, tight leading): Home and broadcast titles. `text-wrap: balance`.
+- **Display** (600, ~3rem / `text-4xl` to `text-5xl`, tight leading): Home and broadcast titles. `text-wrap: balance`.
 - **Headline** (600, ~1.5rem, snug): Story titles in grids and cards.
 - **Title** (500, 1rem, snug): Card titles, section labels in UI.
-- **Body** (400, 0.875rem, 1.5): Summaries, chat prose, descriptions. Cap line length ~65–75ch for long copy.
+- **Body** (400, 0.875rem, 1.5): Summaries, chat prose, descriptions. Cap line length ~65 to 75ch for long copy.
 - **Label** (500, 0.75rem): Badges, meta, form hints. Sentence case preferred; avoid tracked uppercase eyebrows as a system habit.
 
-### Named Rules
+### Named rules
 
 **The Serif Boundary Rule.** Newsreader is for story/display headings only. Buttons, nav, badges, inputs, and timestamps stay Geist.
 
-**The Fixed Scale Rule.** Product type uses fixed rem steps, not fluid clamp hero sizing. Clamp is reserved for rare marketing-scale moments if any — not the desk itself.
+**The Fixed Scale Rule.** Product type uses fixed rem steps, not fluid clamp hero sizing. Clamp is reserved for rare marketing-scale moments if any, not the desk itself.
 
 ## 4. Elevation
 
-Flat by default. Depth is tonal and structural: white cards on white paper separated by hairline borders (`oklch(0.922 0 0)`) or a faint ring (`ring-foreground/10`). Drop shadows appear only on floating overlays (popover, hover-card, dropdown) — never on resting cards or the page shell.
+Flat by default. Depth is tonal and structural: white cards on white paper separated by hairline borders (`oklch(0.922 0 0)`) or a faint ring (`ring-foreground/10`). Drop shadows appear only on floating overlays (popover, hover-card, dropdown), never on resting cards or the page shell.
 
-### Shadow Vocabulary
+### Shadow vocabulary
 
 - **Overlay** (`shadow-md` / equivalent soft elevation): Popovers, menus, command palette. Structural float only.
-- **None at rest:** Cards, panels, story tiles, chat aside — border or ring only.
+- **None at rest:** Cards, panels, story tiles, chat aside: border or ring only.
 
-### Named Rules
+### Named rules
 
-**The Flat-By-Default Rule.** Surfaces are flat at rest. If a resting card needs a shadow to feel “finished,” the hierarchy is wrong — tighten border contrast or spacing instead.
+**The Flat-By-Default Rule.** Surfaces are flat at rest. If a resting card needs a shadow to feel “finished,” the hierarchy is wrong: tighten border contrast or spacing instead.
 
 ## 5. Components
 
-Controls are compact and decisive: short heights, medium radius (~10px), fast 150–250ms state transitions, no decorative chrome.
+Controls are compact and decisive: short heights, medium radius (~10px), fast 150 to 250ms state transitions, no decorative chrome.
 
 ### Buttons
 
@@ -186,17 +187,17 @@ Controls are compact and decisive: short heights, medium radius (~10px), fast 15
 - **Primary:** Desk charcoal fill, on-charcoal text, height 32px (`h-8`), horizontal padding ~10px
 - **Hover / Focus:** Primary softens to ~80% opacity; focus-visible uses ring at 3px with focus-ring color
 - **Outline / Ghost / Secondary:** Hairline border or mist hover wash; same height vocabulary
-- **Destructive:** Alert-red tinted fill/text — never charcoal with a red stripe
+- **Destructive:** Alert-red tinted fill/text, never charcoal with a red stripe
 
-### Cards / Containers
+### Cards / containers
 
-- **Corner Style:** Softer than controls (`rounded-xl`, ~14px)
+- **Corner style:** Softer than controls (`rounded-xl`, ~14px)
 - **Background:** Paper
-- **Shadow Strategy:** None at rest; ring or border for edge
+- **Shadow strategy:** None at rest; ring or border for edge
 - **Border:** Hairline or `ring-foreground/10`
-- **Internal Padding:** 12–16px; story/broadcast tiles use 12px (`p-3`)
+- **Internal padding:** 12 to 16px; story/broadcast tiles use 12px (`p-3`)
 
-### Inputs / Fields
+### Inputs / fields
 
 - **Style:** Transparent or subtle fill, hairline border, `rounded-lg`, height 32px
 - **Focus:** Border shifts to focus-ring + 3px ring at 50% opacity
@@ -204,7 +205,7 @@ Controls are compact and decisive: short heights, medium radius (~10px), fast 15
 
 ### Badges
 
-- **Style:** Pill (`rounded-full`), mist or outline, 20px height, 12px type — status and story counts, not decoration
+- **Style:** Pill (`rounded-full`), mist or outline, 20px height, 12px type: status and story counts, not decoration
 
 ### Navigation
 
@@ -216,11 +217,11 @@ Controls are compact and decisive: short heights, medium radius (~10px), fast 15
 
 ### Chat / timestamps (signature)
 
-- Chat is a bordered paper panel, sticky on large screens. Citations and timestamps are first-class controls — clickable, Geist, muted until interactive — never ornamental chips.
+- Chat is a bordered paper panel, sticky on large screens. Citations and timestamps are first-class controls: clickable, Geist, muted until interactive, never ornamental chips.
 
-## 6. Do's and Don'ts
+## 6. Do's and don'ts
 
-### Do:
+### Do
 
 - **Do** keep primary actions in desk charcoal and rare.
 - **Do** make every answer reach footage with a visible, actionable timestamp.
@@ -230,7 +231,7 @@ Controls are compact and decisive: short heights, medium radius (~10px), fast 15
 - **Do** honor `prefers-reduced-motion` on thumbnail and overlay motion.
 - **Do** meet WCAG 2.2 AA for text, focus, and keyboard paths.
 
-### Don't:
+### Don't
 
 - **Don't** ship generic AI chat dashboards (purple glow, soft blobs, empty “Ask anything” states).
 - **Don't** cosplay broadsheet / newspaper pastiche (dense columns, hairline rules as decoration, “edition” cosplay).

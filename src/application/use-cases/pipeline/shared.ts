@@ -7,6 +7,25 @@ export interface StageResult<T> {
   cached: boolean;
 }
 
+const inflight = new Map<string, Promise<unknown>>();
+
+/**
+ * Share one in-flight promise per key. Evalite runs stage suites in parallel
+ * against the same broadcast; without this, each suite can miss the cache and
+ * kick off duplicate ASR / LLM work (and one empty ASR response can fail a
+ * suite while another succeeds).
+ */
+export function singleFlight<T>(key: string, run: () => Promise<T>): Promise<T> {
+  const existing = inflight.get(key);
+  if (existing) return existing as Promise<T>;
+
+  const promise = run().finally(() => {
+    if (inflight.get(key) === promise) inflight.delete(key);
+  });
+  inflight.set(key, promise);
+  return promise;
+}
+
 /**
  * Stages never create the aggregate root — the upload route is the sole
  * creator. A stage running against an id with no broadcast row is a broken

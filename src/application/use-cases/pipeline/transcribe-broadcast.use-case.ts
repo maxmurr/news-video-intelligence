@@ -5,7 +5,9 @@ import type { IInstrumentationService } from '@/src/application/services/instrum
 import type { IMediaProcessorService } from '@/src/application/services/media-processor.service.interface';
 import type { ITranscriptionService } from '@/src/application/services/transcription.service.interface';
 import type { Transcript } from '@/src/entities/models/transcript';
-import { requireBroadcastById, type StageResult } from './shared';
+import { requireBroadcastById, singleFlight, type StageResult } from './shared';
+
+const MAX_TRANSCRIBE_ATTEMPTS = 3;
 
 /**
  * A transcript must start with a timestamp; anything else is a refusal or
@@ -32,28 +34,41 @@ export const transcribeBroadcastUseCase =
       const existing = await transcriptsRepository.getTranscript(broadcast.id);
       if (existing) return { data: existing, cached: true };
 
-      const audio = await mediaProcessorService.extractSpeechAudio(broadcast.filename);
-      // A failed duration probe must not sink a successful transcription: the
-      // clamp is an enhancement, and 0 makes it a no-op (same as pre-change).
-      const [rawTranscript, durationSeconds] = await Promise.all([
-        transcriptionService.transcribeAudio(audio),
-        mediaProcessorService.durationSeconds(broadcast.filename).catch(() => 0),
-      ]);
-      const text = normalizeTranscript(rawTranscript).trim();
+      return singleFlight(`transcribe:${broadcast.id}`, async () => {
+        const cached = await transcriptsRepository.getTranscript(broadcast.id);
+        if (cached) return { data: cached, cached: true };
 
-      if (!isValidTranscript(text)) {
-        throw new Error(
-          `Transcript for ${broadcast.filename} does not start with a timestamp. Got: ${text.slice(0, 80)}`,
-        );
-      }
+        const audio = await mediaProcessorService.extractSpeechAudio(broadcast.filename);
+        // A failed duration probe must not sink a successful transcription: the
+        // clamp is an enhancement, and 0 makes it a no-op (same as pre-change).
+        const durationPromise = mediaProcessorService.durationSeconds(broadcast.filename).catch(() => 0);
 
-      // Validate before clamping: clamping a refusal would just truncate garbage.
-      // The clamp drops ASR-hallucinated lines past the real end so they never
-      // reach the transcript UI, story segmentation, embeddings, or citations.
-      const saved = await transcriptsRepository.saveTranscript({
-        broadcastId: broadcast.id,
-        text: clampTranscriptToDuration(text, durationSeconds),
+        // The ASR model intermittently returns an empty or preamble-only
+        // response. Regenerate from the same audio a few times before giving up,
+        // so one bad draw doesn't fail the step. The final throw stays a plain
+        // Error, which the workflow still treats as retryable.
+        let text = '';
+        for (let attempt = 1; ; attempt++) {
+          text = normalizeTranscript(await transcriptionService.transcribeAudio(audio)).trim();
+          if (isValidTranscript(text)) break;
+          if (attempt >= MAX_TRANSCRIBE_ATTEMPTS) {
+            throw new Error(
+              `Transcript for ${broadcast.filename} did not start with a timestamp after ` +
+                `${MAX_TRANSCRIBE_ATTEMPTS} attempts. Got: ${text.slice(0, 80)}`,
+            );
+          }
+        }
+
+        const durationSeconds = await durationPromise;
+
+        // Validate before clamping: clamping a refusal would just truncate garbage.
+        // The clamp drops ASR-hallucinated lines past the real end so they never
+        // reach the transcript UI, story segmentation, embeddings, or citations.
+        const saved = await transcriptsRepository.saveTranscript({
+          broadcastId: broadcast.id,
+          text: clampTranscriptToDuration(text, durationSeconds),
+        });
+        return { data: saved, cached: false };
       });
-      return { data: saved, cached: false };
     });
   };

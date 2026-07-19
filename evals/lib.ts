@@ -135,15 +135,53 @@ export const uploadsData = async (): Promise<Array<{ input: string }>> => {
  * Stages resolve their broadcast row by id and never create it, so a fixture
  * video dropped straight into public/uploads needs its row minted before the
  * first stage runs. Returns the broadcast id the stage controllers expect.
+ *
+ * Evalite runs suites in parallel, so many tasks call this for the same
+ * filename at once. Share one in-flight create per filename, and if another
+ * worker still wins the unique insert, re-fetch instead of failing.
  */
-export async function ensureBroadcast(filename: string): Promise<string> {
+const ensuringBroadcast = new Map<string, Promise<string>>();
+
+function isUniqueViolation(error: unknown): boolean {
+  for (let current: unknown = error, depth = 0; current && typeof current === 'object' && depth < 16; depth++) {
+    const node = current as { code?: unknown; message?: unknown; cause?: unknown };
+    if (node.code === '23505') return true;
+    if (typeof node.message === 'string' && /duplicate key|unique constraint/i.test(node.message)) return true;
+    current = 'cause' in node ? node.cause : undefined;
+  }
+  return false;
+}
+
+async function ensureBroadcastOnce(filename: string): Promise<string> {
   try {
     const { id } = await getInjection('IGetBroadcastByFilenameController')(filename);
     return id;
   } catch (error) {
     if (!(error instanceof NotFoundError)) throw error;
-    const { size } = await stat(path.join(PUBLIC_DIR, 'uploads', filename));
-    const { id } = await getInjection('ICreateBroadcastController')({ filename, url: `/uploads/${filename}`, size });
+  }
+
+  const { size } = await stat(path.join(PUBLIC_DIR, 'uploads', filename));
+  try {
+    const { id } = await getInjection('ICreateBroadcastController')({
+      filename,
+      url: `/uploads/${filename}`,
+      size,
+    });
+    return id;
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    const { id } = await getInjection('IGetBroadcastByFilenameController')(filename);
     return id;
   }
+}
+
+export function ensureBroadcast(filename: string): Promise<string> {
+  const inFlight = ensuringBroadcast.get(filename);
+  if (inFlight) return inFlight;
+
+  const promise = ensureBroadcastOnce(filename).finally(() => {
+    ensuringBroadcast.delete(filename);
+  });
+  ensuringBroadcast.set(filename, promise);
+  return promise;
 }

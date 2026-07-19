@@ -1,8 +1,14 @@
-# Interactive News Video Intelligence
+---
+contentType: Landing
+---
+
+# How do I run Interactive News Video Intelligence?
 
 Turns news broadcasts into an interactive research surface: browse stories as a readable edition, then ask follow-up questions grounded in the source footage.
 
-## Quick start
+## Run locally
+
+Copy env defaults, start infra, migrate, then boot the app:
 
 ```bash
 cp .env.sample .env   # set AI_GATEWAY_API_KEY at minimum
@@ -12,8 +18,19 @@ pnpm db:migrate && pnpm workflow:bootstrap && pnpm storage:bootstrap
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Production: [https://news-intelligence.maxmurr.com](https://news-intelligence.maxmurr.com)
 
-## Full setup and evals
+Local: [http://localhost:3000](http://localhost:3000)
 
-See **[docs/getting-started.md](docs/getting-started.md)** for prerequisites, sample configuration, infrastructure bootstrap, and steps to reproduce the Evalite pipeline evaluations.
+## Docs for reviewers
+
+| Doc                                                              | Contents                                                       |
+| ---------------------------------------------------------------- | -------------------------------------------------------------- |
+| [docs/getting-started.md](docs/getting-started.md)               | Prerequisites, sample `.env`, infra bootstrap                  |
+| [EVALS.md](EVALS.md)                                             | Seed fixtures, run Evalite, suites, pass/fail, common failures |
+| [docs/testing.md](docs/testing.md)                               | Unit tests, Evalite pointer, manual UI script, sample videos   |
+| [docs/choices-and-trade-offs.md](docs/choices-and-trade-offs.md) | Product choices, architecture brief, trade-offs                |
+| [ARCHITECTURE.md](ARCHITECTURE.md)                               | Upload → pipeline → desk → chat; storage, models, DI           |
+| [CONTEXT.md](CONTEXT.md)                                         | Product contract and domain language                           |
+| [PRODUCT.md](PRODUCT.md)                                         | Positioning and design principles                              |
+| [DESIGN.md](DESIGN.md)                                           | Visual system reference                                        |

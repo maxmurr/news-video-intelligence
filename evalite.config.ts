@@ -10,6 +10,11 @@ export default defineConfig({
   // broadcast plus an ffmpeg pass; the 30s default times out immediately.
   testTimeout: 600_000,
   viteConfig: {
+    // Stage suites share one Postgres. Run the eval files serially so the first
+    // suite populates the cache (transcript, stories, …) and the rest read it,
+    // instead of each worker re-transcribing the same broadcast in parallel —
+    // which races on the write and multiplies exposure to flaky model output.
+    test: { fileParallelism: false },
     resolve: {
       alias: {
         // The DI container's infrastructure imports reach server-only modules;

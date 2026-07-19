@@ -25,6 +25,7 @@
     "eval": "evalite run",
     "eval:dev": "evalite watch",
     "eval:export": "evalite run --outputPath evals/results/latest.json",
+    "eval:fresh": "pnpm db:reset && pnpm eval:export",
     "workflow:web": "workflow web",
     "ai:devtools": "devtools"
   },
