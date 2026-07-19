@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport, type UIMessage } from 'ai';
+import { DefaultChatTransport } from 'ai';
 import {
   Conversation,
   ConversationContent,
@@ -19,34 +19,6 @@ import { shouldShowLoadingShimmer } from '@/lib/chat-loading';
 import { browserTimeZone } from '@/lib/dates';
 import type { StoryCard } from '@/lib/broadcast-types';
 import { AnswerWithCitations } from './timestamp';
-
-const CHAT_STORAGE_PREFIX = 'broadcast-desk:chat:';
-
-function chatStorageKey(fileId: string): string {
-  return `${CHAT_STORAGE_PREFIX}${fileId}`;
-}
-
-function isStoredMessage(value: unknown): value is UIMessage {
-  if (typeof value !== 'object' || value === null) return false;
-  const message = value as Partial<UIMessage>;
-  return (
-    typeof message.id === 'string' &&
-    (message.role === 'user' || message.role === 'assistant' || message.role === 'system') &&
-    Array.isArray(message.parts)
-  );
-}
-
-function readStoredMessages(fileId: string): UIMessage[] | null {
-  try {
-    const raw = window.localStorage.getItem(chatStorageKey(fileId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed) || parsed.length === 0 || !parsed.every(isStoredMessage)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
 
 function truncateLabel(text: string, max = 36): string {
   if (text.length <= max) return text;
@@ -167,31 +139,18 @@ export function ChatPanel({
       }),
     [fileId],
   );
-  const { messages, setMessages, sendMessage, regenerate, status, error } = useChat({ transport });
+  const { messages, sendMessage, regenerate, status, error } = useChat({ transport });
 
-  // Restore the saved research trail once, then mirror settled messages back
-  // to storage so a refresh or a trip to the library never loses citations.
   React.useEffect(() => {
     consumedAskRef.current = null;
-    const stored = readStoredMessages(fileId);
-    if (stored) setMessages(stored);
-  }, [fileId, setMessages]);
-
-  React.useEffect(() => {
-    if (messages.length === 0 || status === 'submitted' || status === 'streaming') return;
-    try {
-      window.localStorage.setItem(chatStorageKey(fileId), JSON.stringify(messages));
-    } catch {
-      // Storage full or blocked — the live session still works; only persistence degrades.
-    }
-  }, [status, messages, fileId]);
+  }, [fileId]);
 
   const busy = status === 'submitted' || status === 'streaming';
   const showLoadingShimmer = shouldShowLoadingShimmer(status, messages);
   const isEmpty = messages.length === 0;
   const exportFilename = `broadcast-${filename.replace(/\.mp4$/i, '').split('-')[0]}-chat.md`;
 
-  // Handoff from Ask: wait a tick so history restore's setMessages commits first.
+  // Handoff from Ask: defer a tick so the submit lands after the initial render commits.
   React.useEffect(() => {
     const trimmed = initialPrompt?.trim() ?? '';
     if (!trimmed || !transcriptReady || busy) return;
