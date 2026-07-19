@@ -1,11 +1,11 @@
 'use client';
 
-import * as React from 'react';
 import { ArrowUpIcon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from '@/components/ui/input-group';
 import { NEGATIVE_FEEDBACK_CATEGORIES, type NegativeFeedbackCategoryId } from '@/lib/chat-feedback-categories';
 import { cn } from '@/lib/utils';
+import { KeyboardEvent, SyntheticEvent, useId, useRef, useState } from 'react';
 
 export type { NegativeFeedbackCategoryId };
 
@@ -36,47 +36,57 @@ export function NegativeFeedbackPanel({
   className?: string;
   isSubmitting?: boolean;
 }) {
-  const titleId = React.useId();
-  const commentId = React.useId();
-  const [category, setCategory] = React.useState<NegativeFeedbackCategoryId | null>(null);
-  const [comment, setComment] = React.useState('');
-  const commentRef = React.useRef<HTMLTextAreaElement>(null);
+  const titleId = useId();
+  const commentId = useId();
+  const [category, setCategory] = useState<NegativeFeedbackCategoryId | null>(null);
+  const [comment, setComment] = useState('');
+  const shouldFocusOtherRef = useRef(false);
+  const localSubmittingRef = useRef(false);
   const showOtherInput = isOtherCategory(category);
   const canSubmit = canSubmitNegativeFeedback(category, comment);
 
-  React.useEffect(() => {
-    if (!showOtherInput) return;
-    commentRef.current?.focus();
-  }, [showOtherInput]);
+  function setCommentNode(node: HTMLTextAreaElement | null) {
+    if (!node || !shouldFocusOtherRef.current) return;
+    shouldFocusOtherRef.current = false;
+    node.focus();
+  }
 
   function selectCategory(next: NegativeFeedbackCategoryId) {
-    if (isSubmitting) return;
+    if (isSubmitting || localSubmittingRef.current) return;
     setCategory(next);
 
     if (isOtherCategory(next)) {
+      shouldFocusOtherRef.current = true;
       setComment('');
       return;
     }
 
-    void onSubmitAction({ category: next });
+    localSubmittingRef.current = true;
+    void Promise.resolve(onSubmitAction({ category: next })).finally(() => {
+      localSubmittingRef.current = false;
+    });
   }
 
-  function handleSubmit(event?: React.FormEvent) {
+  function handleSubmit(event?: SyntheticEvent<HTMLFormElement>) {
     event?.preventDefault();
     // Reached only from the free-text "other" box (submit button / cmd+enter);
     // preset reasons submit directly from selectCategory.
-    if (isSubmitting || !category || !canSubmit) return;
-    void onSubmitAction({ category, comment: comment.trim() });
+    if (isSubmitting || localSubmittingRef.current || !category || !canSubmit) return;
+
+    localSubmittingRef.current = true;
+    void Promise.resolve(onSubmitAction({ category, comment: comment.trim() })).finally(() => {
+      localSubmittingRef.current = false;
+    });
   }
 
-  function handleCommentKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+  function handleCommentKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== 'Enter') return;
     if (!(event.metaKey || event.ctrlKey)) return;
     event.preventDefault();
     handleSubmit();
   }
 
-  function handleFormKeyDown(event: React.KeyboardEvent<HTMLFormElement>) {
+  function handleFormKeyDown(event: KeyboardEvent<HTMLFormElement>) {
     if (event.key !== 'Escape') return;
     event.preventDefault();
     onDismissAction();
@@ -146,7 +156,7 @@ export function NegativeFeedbackPanel({
           </label>
           <InputGroup className="dark:bg-input/40 h-auto min-w-0">
             <InputGroupTextarea
-              ref={commentRef}
+              ref={setCommentNode}
               id={commentId}
               value={comment}
               onChange={event => setComment(event.target.value)}
