@@ -1,6 +1,7 @@
 'use client';
 
-import { CheckIcon, CopyIcon, ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react';
+import { CheckIcon, CopyIcon, PlayIcon, ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { MessageAction, MessageActions, MessageToolbar } from '@/components/ai-elements/message';
 import {
@@ -8,6 +9,9 @@ import {
   type NegativeFeedbackCategoryId,
   type NegativeFeedbackPayload,
 } from '@/components/chat/negative-feedback-panel';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from '@/components/ui/popover';
+import type { ChatMessageSource } from '@/lib/chat/message-sources';
 import { copyText } from '@/lib/clipboard-share';
 import { cn } from '@/lib/utils';
 import { useEffect, useRef, useState, useTransition } from 'react';
@@ -51,15 +55,76 @@ function hitTargetClassName(className?: string) {
   );
 }
 
+function SourcesPopover({ sources }: { sources: readonly ChatMessageSource[] }) {
+  const sourceCount = sources.length;
+  const sourceLabel = sourceCount === 1 ? '1 source' : `${sourceCount} sources`;
+
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={cn(
+              'text-muted-foreground border-border/80 bg-muted/40 h-7 shrink-0 gap-1.5 px-2 text-xs tabular-nums',
+              'hover:text-foreground',
+            )}
+            title={sourceLabel}
+            aria-label={`Show ${sourceLabel}`}
+          />
+        }
+      >
+        <BroadcastSourcesIcon className="size-3.5 shrink-0" />
+        <span>{sourceLabel}</span>
+      </PopoverTrigger>
+      <PopoverContent align="start" side="top" className="w-80 gap-3 p-3">
+        <PopoverHeader>
+          <PopoverTitle>Sources</PopoverTitle>
+        </PopoverHeader>
+        <ul className="flex max-h-72 flex-col gap-3 overflow-y-auto">
+          {sources.map(source => (
+            <li key={source.sourceId} className="flex min-w-0 flex-col gap-1.5">
+              <Link
+                href={`/v/${source.sourceId}`}
+                className="hover:text-foreground text-sm font-medium text-pretty underline-offset-2 hover:underline"
+              >
+                {source.title}
+              </Link>
+              {source.timestamps.length > 0 ? (
+                <ul className="flex flex-wrap gap-1.5">
+                  {source.timestamps.map(timestamp => (
+                    <li key={timestamp}>
+                      <Link
+                        href={`/v/${source.sourceId}?t=${encodeURIComponent(timestamp)}`}
+                        aria-label={`Open ${source.title} at ${timestamp}`}
+                        className="bg-muted hover:border-primary hover:bg-primary hover:text-primary-foreground focus-visible:border-ring focus-visible:ring-ring/50 inline-flex min-h-8 items-center gap-1 rounded-md border px-2 py-1 font-mono text-xs font-medium tabular-nums transition-colors duration-150 ease-out focus-visible:ring-3 focus-visible:outline-none"
+                      >
+                        <PlayIcon className="size-2.5 fill-current" aria-hidden />
+                        {timestamp}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function AssistantMessageActions({
   text,
-  sourceCount = 0,
+  sources = [],
   className,
   onFeedbackAction,
 }: {
   text: string;
-  /** Unique grounded broadcasts; omit or pass 0 to hide the sources badge. */
-  sourceCount?: number;
+  /** Unique grounded broadcasts with jumpable moments; omit to hide the badge. */
+  sources?: readonly ChatMessageSource[];
   className?: string;
   /**
    * Fired when the reader rates the response; wire to Langfuse scores.
@@ -154,7 +219,6 @@ export function AssistantMessageActions({
     setIsNegativePanelOpen(false);
   }
 
-  const sourceLabel = sourceCount === 1 ? '1 source' : `${sourceCount} sources`;
   const showThumbsUp = feedback !== 'down';
   const showThumbsDown = feedback !== 'up';
   const isThumbsDownActive = feedback === 'down' || isNegativePanelOpen;
@@ -197,18 +261,7 @@ export function AssistantMessageActions({
           ) : null}
         </MessageActions>
 
-        {sourceCount > 0 ? (
-          <span
-            className={cn(
-              'text-muted-foreground inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border px-2 text-xs',
-              'border-border/80 bg-muted/40 tabular-nums',
-            )}
-            title={sourceLabel}
-          >
-            <BroadcastSourcesIcon className="size-3.5 shrink-0" />
-            <span>{sourceLabel}</span>
-          </span>
-        ) : null}
+        {sources.length > 0 ? <SourcesPopover sources={sources} /> : null}
       </MessageToolbar>
 
       {isNegativePanelOpen ? (
@@ -222,15 +275,6 @@ export function AssistantMessageActions({
   );
 }
 
-/** Collect grounded broadcast sources from an assistant message's parts. */
-export function countMessageSources(parts: ReadonlyArray<{ type: string }>): number {
-  let count = 0;
-  for (const part of parts) {
-    if (part.type === 'source-url' || part.type === 'source-document') count += 1;
-  }
-  return count;
-}
-
 /** Concatenate text parts for clipboard copy. */
 export function assistantMessageText(parts: ReadonlyArray<{ type: string; text?: string }>): string {
   return parts
@@ -238,3 +282,6 @@ export function assistantMessageText(parts: ReadonlyArray<{ type: string; text?:
     .join('\n\n')
     .trim();
 }
+
+export type { ChatMessageSource } from '@/lib/chat/message-sources';
+export { collectMessageSources, countMessageSources } from '@/lib/chat/message-sources';

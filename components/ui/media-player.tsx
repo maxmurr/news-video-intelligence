@@ -2093,7 +2093,7 @@ function MediaPlayerSeek(props: MediaPlayerSeekProps) {
         onPointerLeave={onPointerLeave}
         onPointerMove={onPointerMove}
       >
-        <SliderPrimitive.Control className="relative flex w-full items-center">
+        <SliderPrimitive.Control className="relative flex h-5 w-full cursor-pointer items-center">
           <SliderPrimitive.Track className="relative h-1 w-full grow overflow-hidden rounded-full bg-primary/40">
             <div
               data-slot="media-player-seek-buffered"
@@ -2324,7 +2324,7 @@ function MediaPlayerVolume(props: MediaPlayerVolumeProps) {
         onValueChange={onVolumeChange}
         onValueCommitted={onVolumeCommit}
       >
-        <SliderPrimitive.Control className="relative flex w-full items-center">
+        <SliderPrimitive.Control className="relative flex h-5 w-full cursor-pointer items-center">
           <SliderPrimitive.Track className="relative h-1 w-full grow overflow-hidden rounded-full bg-zinc-500">
             <SliderPrimitive.Indicator className="absolute h-full bg-primary will-change-[width]" />
           </SliderPrimitive.Track>

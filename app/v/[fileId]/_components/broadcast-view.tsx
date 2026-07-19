@@ -134,11 +134,11 @@ function BroadcastAskScrim() {
 
 function BroadcastPlayerSlot() {
   const {
-    state: { broadcast },
+    state: { broadcast, deepLinkSeekSeconds },
     meta: { videoRef },
   } = useBroadcast();
 
-  return <BroadcastPlayer src={broadcast.url} videoRef={videoRef} />;
+  return <BroadcastPlayer src={broadcast.url} videoRef={videoRef} autoplaySeekSeconds={deepLinkSeekSeconds} />;
 }
 
 function BroadcastAnalysis() {

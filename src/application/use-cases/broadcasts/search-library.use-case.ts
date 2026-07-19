@@ -5,7 +5,7 @@ import type { IRerankService } from '@/src/application/services/rerank.service.i
 import type { TranscriptChunkHit } from '@/src/entities/models/transcript-chunk';
 
 /** How many chunks library retrieval feeds into the desk assistant by default. */
-export const RETRIEVAL_TOP_K = 10;
+export const RETRIEVAL_TOP_K = 20;
 
 /**
  * How many vector candidates the reranker sees before it picks the top-k. Wide

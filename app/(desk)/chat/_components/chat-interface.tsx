@@ -10,7 +10,11 @@ import {
   PromptInputTools,
 } from '@/components/ai-elements/prompt-input';
 import { Suggestion, Suggestions } from '@/components/ai-elements/suggestion';
-import { AssistantMessageActions, assistantMessageText } from '@/components/chat/assistant-message-actions';
+import {
+  AssistantMessageActions,
+  assistantMessageText,
+  collectMessageSources,
+} from '@/components/chat/assistant-message-actions';
 import { UserMessage, userMessageText } from '@/components/chat/user-message';
 import { Button } from '@/components/ui/button';
 import type { ChatBroadcastOption } from '@/lib/broadcast-types';
@@ -172,14 +176,6 @@ function starterPrompt(suggestion: string, lead: ChatBroadcastOption | null): st
     return 'What is the key claim? Cite a timestamp.';
   }
   return suggestion;
-}
-
-function countMessageSources(parts: ReadonlyArray<{ type: string }>): number {
-  let count = 0;
-  for (const part of parts) {
-    if (part.type === 'source-url' || part.type === 'source-document') count += 1;
-  }
-  return count;
 }
 
 function ScopeChip({
@@ -428,7 +424,7 @@ function ChatInterfaceMessage({ messageId, busy, isLast }: { messageId: string; 
   }
 
   const responseText = assistantMessageText(message.parts);
-  const sourceCount = countMessageSources(message.parts);
+  const sources = collectMessageSources(message.parts);
 
   return (
     <Message from={message.role}>
@@ -440,7 +436,7 @@ function ChatInterfaceMessage({ messageId, busy, isLast }: { messageId: string; 
       {!isStreamingAssistant && responseText ? (
         <AssistantMessageActions
           text={responseText}
-          sourceCount={sourceCount}
+          sources={sources}
           onFeedbackAction={feedback => submitChatFeedback(message.id, feedback)}
         />
       ) : null}

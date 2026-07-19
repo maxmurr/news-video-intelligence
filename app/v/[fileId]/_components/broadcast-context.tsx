@@ -11,6 +11,7 @@ import {
   type StoryCard,
 } from '@/lib/broadcast-types';
 import { broadcastShareUrl, shareOrCopyUrl } from '@/lib/clipboard-share';
+import { TIMESTAMP_PATTERN, timestampToSeconds } from '@/lib/timestamps';
 import { analysisConcern, type AnalysisConcern } from './stage-progress';
 import { activeStoryIndex } from './story-grid';
 
@@ -66,11 +67,26 @@ export interface SeekOptions {
   scroll?: SeekScroll;
 }
 
+/**
+ * Start playback at the seek target. In-page clicks usually unlock unmuted play;
+ * deep links (`?t=`) run outside a user gesture, so fall back to muted autoplay.
+ */
+function playAtSeekTarget(video: HTMLVideoElement) {
+  void video.play().catch(() => {
+    video.muted = true;
+    void video.play().catch(() => {
+      // Still blocked; the cited frame is already on screen.
+    });
+  });
+}
+
 export interface BroadcastState {
   broadcast: BroadcastDetail;
   askDockOpen: boolean;
   askPrompt: string | null;
   seekAnnouncement: string;
+  /** Seconds from `?t=` deep links — drives muted autoplay on the player. */
+  deepLinkSeekSeconds: number | null;
   retrying: boolean;
   tab: BroadcastTab;
   processing: boolean;
@@ -154,6 +170,10 @@ export function BroadcastProvider({ initial, children }: { initial: BroadcastPag
   const [tab, setTabQuery] = useQueryState('tab', broadcastTabParser);
   const [askPrompt, setAskPrompt] = useQueryState(
     'ask',
+    parseAsString.withOptions({ history: 'replace', shallow: true }),
+  );
+  const [seekTimestamp, setSeekTimestamp] = useQueryState(
+    't',
     parseAsString.withOptions({ history: 'replace', shallow: true }),
   );
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
@@ -352,6 +372,7 @@ export function BroadcastProvider({ initial, children }: { initial: BroadcastPag
   const seekTo = React.useCallback((seconds: number, options?: SeekOptions) => {
     const video = videoRef.current;
     if (!video) return;
+
     // The highlight and announcement must reflect where playback actually
     // lands, so both derive from the same clamped target as the seek itself.
     const commit = (target: number) => {
@@ -362,16 +383,17 @@ export function BroadcastProvider({ initial, children }: { initial: BroadcastPag
       const story = index !== null ? stories[index] : undefined;
       const clock = formatSeekClock(target);
       setSeekAnnouncement(story ? `Now playing: ${story.headline} at ${clock}` : `Playing at ${clock}`);
+      // Set currentTime before play() so playback starts on the cited frame.
+      playAtSeekTarget(video);
     };
+
     // Seeking before metadata loads gets clamped to 0 on Safari/iOS.
     if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
       commit(clampToPlayable(video, seconds));
     } else {
       video.addEventListener('loadedmetadata', () => commit(clampToPlayable(video, seconds)), { once: true });
     }
-    void video.play().catch(() => {
-      // Autoplay can be blocked; the frame is still shown at the right moment.
-    });
+
     // Stories/chat jump to the player. Transcript keeps the clicked line —
     // scrolling the header would yank the proof text out of view.
     if ((options?.scroll ?? 'player') === 'none') return;
@@ -383,6 +405,27 @@ export function BroadcastProvider({ initial, children }: { initial: BroadcastPag
   }, []);
 
   const seekFromTranscript = React.useCallback((seconds: number) => seekTo(seconds, { scroll: 'none' }), [seekTo]);
+
+  const deepLinkSeekSeconds =
+    seekTimestamp && TIMESTAMP_PATTERN.test(seekTimestamp) ? timestampToSeconds(seekTimestamp) : null;
+
+  // Deep-link playback is owned by BroadcastPlayer (muted autoPlay + seek).
+  // This effect only syncs desk chrome — calling seekTo here would start a second play().
+  React.useEffect(() => {
+    if (!seekTimestamp) return;
+    if (!TIMESTAMP_PATTERN.test(seekTimestamp)) {
+      void setSeekTimestamp(null);
+      return;
+    }
+    if (deepLinkSeekSeconds === null) return;
+
+    setActiveSeconds(deepLinkSeekSeconds);
+    const stories = storiesRef.current;
+    const index = activeStoryIndex(stories, deepLinkSeekSeconds);
+    const story = index !== null ? stories[index] : undefined;
+    const clock = formatSeekClock(deepLinkSeekSeconds);
+    setSeekAnnouncement(story ? `Now playing: ${story.headline} at ${clock}` : `Playing at ${clock}`);
+  }, [broadcast.id, deepLinkSeekSeconds, seekTimestamp, setSeekTimestamp]);
 
   const leadHeadline = broadcast.topHeadline?.trim() || null;
   const title = leadHeadline || (processing ? 'Processing…' : 'Untitled broadcast');
@@ -418,6 +461,7 @@ export function BroadcastProvider({ initial, children }: { initial: BroadcastPag
         askDockOpen,
         askPrompt,
         seekAnnouncement,
+        deepLinkSeekSeconds,
         retrying,
         tab,
         processing,
@@ -452,6 +496,7 @@ export function BroadcastProvider({ initial, children }: { initial: BroadcastPag
       askDockOpen,
       askPrompt,
       seekAnnouncement,
+      deepLinkSeekSeconds,
       retrying,
       tab,
       processing,

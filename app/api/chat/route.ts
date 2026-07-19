@@ -63,14 +63,17 @@ async function handleChat(req: Request): Promise<Response> {
         sections.push('', ...libraryGrounding(hits, titles));
         grounded = true;
 
-        // One source per broadcast for the response toolbar — chunks share footage.
+        // One source-url per (broadcast, startTime). The toolbar groups by broadcast
+        // and lists each grounded moment as a jumpable timecode.
         const seen = new Set<string>();
         for (const hit of hits) {
-          if (seen.has(hit.broadcastId)) continue;
-          seen.add(hit.broadcastId);
+          const key = `${hit.broadcastId}\0${hit.startTime}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const params = new URLSearchParams({ t: hit.startTime });
           sources.push({
             sourceId: hit.broadcastId,
-            url: `/v/${hit.broadcastId}`,
+            url: `/v/${hit.broadcastId}?${params.toString()}`,
             title: titles.get(hit.broadcastId) ?? 'Untitled broadcast',
           });
         }
@@ -81,7 +84,13 @@ async function handleChat(req: Request): Promise<Response> {
   }
   if (!grounded) sections.push('', NO_LIBRARY_CONTEXT);
 
-  updateActiveObservation({ metadata: { grounded, sourceCount: sources.length } });
+  updateActiveObservation({
+    metadata: {
+      grounded,
+      sourceCount: new Set(sources.map(source => source.sourceId)).size,
+      momentCount: sources.length,
+    },
+  });
 
   sections.push('', formatDateTimeContext(new Date(), parsed.timezone));
 
